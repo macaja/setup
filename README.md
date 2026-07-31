@@ -16,7 +16,7 @@ The installer is idempotent. It:
    `zsh-syntax-highlighting` (`git` and `z` ship with oh-my-zsh).
 3. Symlinks `~/.zshrc` → `zsh/zshrc`.
 4. Symlinks Claude Code global config into `~/.claude`:
-   `settings.json`, `statusline.sh`, `session-bg.sh`, `bin/`, and each
+   `settings.json`, `statusline.sh`, `bin/`, and each
    skill in `claude/skills/`.
 
 Claude Code plugins reinstall themselves from `enabledPlugins` in
@@ -28,9 +28,8 @@ Claude Code plugins reinstall themselves from `enabledPlugins` in
 install.sh            one-command machine setup
 zsh/zshrc             shell config (oh-my-zsh, plugins, PATH, aliases)
 claude/
-  settings.json       hooks, statusline, plugins, theme, permissions
+  settings.json       statusline, plugins, theme, permissions
   statusline.sh       dir (session-colored) + worktree + branch + model + ctx
-  session-bg.sh       random dark terminal background per Claude session
   bin/new-wt          pull main, create .worktrees/<type>/<name>, launch Claude
   skills/             portable skills (work skills stay local, out of this repo)
 ```

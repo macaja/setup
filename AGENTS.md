@@ -14,9 +14,8 @@ setup/
 ├── zsh/
 │   └── zshrc           # symlinked to ~/.zshrc
 └── claude/             # global Claude Code config
-    ├── settings.json   # symlinked to ~/.claude/settings.json (hooks, statusline, plugins)
+    ├── settings.json   # symlinked to ~/.claude/settings.json (statusline, plugins)
     ├── statusline.sh   # statusline: dir + branch + model + context, per-session color
-    ├── session-bg.sh   # SessionStart/SessionEnd hook: per-session terminal bg tint
     ├── bin/            # symlinked to ~/.claude/bin (on PATH via zshrc): new-wt, ...
     └── skills/         # each subdir symlinked into ~/.claude/skills/
 ```
