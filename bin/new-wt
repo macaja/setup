@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -ne 1 ]; then
+  echo "usage: new-wt <type>/<name>" >&2
+  echo "types: build chore ci docs feat fix perf refactor revert style test" >&2
+  echo "example: new-wt feat/user-auth" >&2
+  exit 1
+fi
+
+branch="$1"
+case "$branch" in
+  build/*|chore/*|ci/*|docs/*|feat/*|fix/*|perf/*|refactor/*|revert/*|style/*|test/*) ;;
+  *) echo "error: branch must be <type>/<name> with a conventional-commit type (build, chore, ci, docs, feat, fix, perf, refactor, revert, style, test)" >&2; exit 1 ;;
+esac
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+git pull origin main
+
+worktree=".worktrees/$branch"
+git worktree add "$worktree" -b "$branch"
+
+cd "$worktree"
+exec claude

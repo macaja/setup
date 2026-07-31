@@ -1,0 +1,48 @@
+{
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "deny": [
+      "Skill(caveman-commit)"
+    ]
+  },
+  "model": "fable",
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/session-bg.sh\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/session-bg.sh\" end 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"/Users/macaja/.claude/statusline.sh\""
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
+  },
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark"
+}

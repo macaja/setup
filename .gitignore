@@ -1,0 +1,11 @@
+# Whitelist: ignore everything, track only portable config.
+*
+!.gitignore
+!README.md
+!settings.json
+!statusline.sh
+!session-bg.sh
+!bin/
+!bin/**
+!skills/
+!skills/**
