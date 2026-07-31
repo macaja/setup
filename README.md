@@ -1,23 +1,41 @@
-# claude-config
+# setup
 
-Portable global Claude Code config, tracked from inside `~/.claude` with a
-whitelist `.gitignore` (everything else in the directory is local state).
+Personal machine config: zsh + Claude Code, with a one-command installer.
 
-## Tracked
-
-- `settings.json` — hooks, statusline, enabled plugins, theme, permissions
-- `statusline.sh` — statusline: dir (session-colored) + worktree + branch + model + context
-- `session-bg.sh` — random dark terminal background per session (SessionStart/SessionEnd hooks)
-- `bin/new-wt` — pull main, create `.worktrees/<type>/<name>` worktree, launch Claude in it
-- `skills/` — global skills (real content, no work symlinks; pipelabs skills stay local-only)
-- `zshrc` — shell config; `~/.zshrc` is a symlink to it
-
-## Setup on a new machine
+## New machine
 
 ```sh
-cd ~/.claude && git init && git remote add origin git@github.com:macaja/claude-config.git
-git fetch && git checkout -f main
-ln -sf ~/.claude/zshrc ~/.zshrc
+git clone git@github.com:macaja/setup.git ~/setup
+~/setup/install.sh
 ```
 
-Plugins reinstall automatically from `enabledPlugins` in `settings.json`.
+The installer is idempotent. It:
+
+1. Installs oh-my-zsh if missing.
+2. Clones the custom zsh plugins from `zshrc`: `zsh-autosuggestions`,
+   `zsh-syntax-highlighting` (`git` and `z` ship with oh-my-zsh).
+3. Symlinks `~/.zshrc` → `zsh/zshrc`.
+4. Symlinks Claude Code global config into `~/.claude`:
+   `settings.json`, `statusline.sh`, `session-bg.sh`, `bin/`, and each
+   skill in `claude/skills/`.
+
+Claude Code plugins reinstall themselves from `enabledPlugins` in
+`claude/settings.json`.
+
+## Layout
+
+```
+install.sh            one-command machine setup
+zsh/zshrc             shell config (oh-my-zsh, plugins, PATH, aliases)
+claude/
+  settings.json       hooks, statusline, plugins, theme, permissions
+  statusline.sh       dir (session-colored) + worktree + branch + model + ctx
+  session-bg.sh       random dark terminal background per Claude session
+  bin/new-wt          pull main, create .worktrees/<type>/<name>, launch Claude
+  skills/             portable skills (work skills stay local, out of this repo)
+```
+
+## Updating
+
+Edit files here (`~/.claude` and `~/.zshrc` are symlinks into this repo),
+then commit and push.
