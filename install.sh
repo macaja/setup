@@ -38,6 +38,7 @@ ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
 
 echo "==> claude config"
 mkdir -p "$HOME/.claude/skills"
+ln -sfn "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 ln -sfn "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 ln -sfn "$REPO_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh"
 ln -sfn "$REPO_DIR/claude/session-bg.sh" "$HOME/.claude/session-bg.sh"
