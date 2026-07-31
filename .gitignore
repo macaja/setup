@@ -5,7 +5,13 @@
 !settings.json
 !statusline.sh
 !session-bg.sh
+!zshrc
 !bin/
 !bin/**
 !skills/
 !skills/**
+
+# Pipelabs skills stay local (symlinks into pipelabs/work dirs), out of this repo.
+skills/skill-audit
+skills/runbooks
+skills/writing-guidelines
