@@ -37,7 +37,7 @@ echo "==> zshrc"
 ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
 
 echo "==> claude config"
-mkdir -p "$HOME/.claude/skills"
+mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents"
 ln -sfn "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 ln -sfn "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 ln -sfn "$REPO_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh"
@@ -45,6 +45,9 @@ ln -sfn "$REPO_DIR/claude/session-bg.sh" "$HOME/.claude/session-bg.sh"
 ln -sfn "$REPO_DIR/claude/bin" "$HOME/.claude/bin"
 for skill in "$REPO_DIR"/claude/skills/*/; do
   ln -sfn "${skill%/}" "$HOME/.claude/skills/$(basename "$skill")"
+done
+for agent in "$REPO_DIR"/claude/agents/*.md; do
+  ln -sfn "$agent" "$HOME/.claude/agents/$(basename "$agent")"
 done
 
 echo "done — open a new terminal (or: source ~/.zshrc)"
