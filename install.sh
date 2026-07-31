@@ -1,9 +1,25 @@
 #!/usr/bin/env bash
-# Sets up a new machine from this repo: oh-my-zsh + plugins, zshrc,
-# and Claude Code global config. Idempotent — safe to re-run.
+# Sets up a new machine from this repo: homebrew + basics (ghostty, gh),
+# oh-my-zsh + plugins, zshrc, and Claude Code global config.
+# Idempotent — safe to re-run. brew is the default installer; curl only
+# bootstraps what brew can't install (homebrew itself, oh-my-zsh).
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "==> homebrew"
+if ! command -v brew >/dev/null 2>&1; then
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+# brew lives outside the default PATH (/opt/homebrew on apple silicon);
+# load it for the rest of this script and persist it for future shells.
+BREW_BIN="$([ -x /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo /usr/local/bin/brew)"
+eval "$("$BREW_BIN" shellenv)"
+grep -qs 'brew shellenv' "$HOME/.zprofile" || echo "eval \"\$($BREW_BIN shellenv zsh)\"" >> "$HOME/.zprofile"
+
+echo "==> brew packages (ghostty, gh)"
+brew list --cask ghostty >/dev/null 2>&1 || brew install --cask ghostty
+brew list gh >/dev/null 2>&1 || brew install gh
 
 echo "==> oh-my-zsh"
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
