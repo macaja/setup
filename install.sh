@@ -36,6 +36,10 @@ ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 echo "==> zshrc"
 ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
 
+echo "==> ghostty config"
+mkdir -p "$HOME/.config/ghostty"
+ln -sfn "$REPO_DIR/ghostty/config" "$HOME/.config/ghostty/config"
+
 echo "==> claude config"
 mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents"
 ln -sfn "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
