@@ -17,9 +17,10 @@ BREW_BIN="$([ -x /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo
 eval "$("$BREW_BIN" shellenv)"
 grep -qs 'brew shellenv' "$HOME/.zprofile" || echo "eval \"\$($BREW_BIN shellenv zsh)\"" >> "$HOME/.zprofile"
 
-echo "==> brew packages (ghostty, gh)"
+echo "==> brew packages (ghostty, gh, yazi)"
 brew list --cask ghostty >/dev/null 2>&1 || brew install --cask ghostty
 brew list gh >/dev/null 2>&1 || brew install gh
+brew list yazi >/dev/null 2>&1 || brew install yazi
 
 echo "==> oh-my-zsh"
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -39,6 +40,14 @@ ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
 echo "==> ghostty config"
 mkdir -p "$HOME/.config/ghostty"
 ln -sfn "$REPO_DIR/ghostty/config" "$HOME/.config/ghostty/config"
+
+echo "==> yazi config"
+mkdir -p "$HOME/.config/yazi"
+ln -sfn "$REPO_DIR/yazi/yazi.toml" "$HOME/.config/yazi/yazi.toml"
+ln -sfn "$REPO_DIR/yazi/keymap.toml" "$HOME/.config/yazi/keymap.toml"
+ln -sfn "$REPO_DIR/yazi/package.toml" "$HOME/.config/yazi/package.toml"
+# reinstall plugins listed in package.toml
+ya pkg install
 
 echo "==> claude config"
 mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents"

@@ -17,7 +17,9 @@ The installer is idempotent. It:
    `zsh-syntax-highlighting` (`git` and `z` ship with oh-my-zsh).
 3. Symlinks `~/.zshrc` → `zsh/zshrc`.
 4. Symlinks `~/.config/ghostty/config` → `ghostty/config`.
-5. Symlinks Claude Code global config into `~/.claude`:
+5. Symlinks yazi config into `~/.config/yazi` and reinstalls its
+   plugins from `yazi/package.toml` (`ya pkg install`).
+6. Symlinks Claude Code global config into `~/.claude`:
    `settings.json`, `statusline.sh`, `bin/`, and each
    skill in `claude/skills/`.
 
@@ -30,6 +32,7 @@ Claude Code plugins reinstall themselves from `enabledPlugins` in
 install.sh            one-command machine setup
 zsh/zshrc             shell config (oh-my-zsh, plugins, PATH, aliases)
 ghostty/config        terminal config (theme, transparency, splits, keybinds)
+yazi/                 file-manager config (pane ratio, keymap, plugin list)
 claude/
   settings.json       statusline, plugins, theme, permissions
   statusline.sh       dir (session-colored) + worktree + branch + model + ctx
