@@ -22,5 +22,17 @@
     }
   },
   "skipWorkflowUsageWarning": true,
-  "theme": "dark"
+  "theme": "dark",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"$HOME/.claude/hooks/communication-rules.md\""
+          }
+        ]
+      }
+    ]
+  }
 }
