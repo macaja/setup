@@ -35,7 +35,7 @@ ghostty/config        terminal config (theme, transparency, splits, keybinds)
 yazi/                 file-manager config (pane ratio, keymap, plugin list)
 bin/
   create-wt           pull main, create .worktrees/<type>/<name>
-  clean-wt            remove .worktrees/<type>/<name> worktree + delete branch
+  clean-wt            remove worktrees whose branch is merged into main
 claude/
   settings.json       statusline, plugins, theme, permissions
   statusline.sh       dir (session-colored) + worktree + branch + model + ctx

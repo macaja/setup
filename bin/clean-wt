@@ -1,22 +1,53 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ $# -ne 1 ]; then
-  echo "usage: clean-wt <type>/<name>" >&2
-  echo "example: clean-wt feat/user-auth" >&2
+if [ $# -ne 0 ]; then
+  echo "usage: clean-wt" >&2
+  echo "removes .worktrees/* whose branch is already merged into main" >&2
   exit 1
 fi
-
-branch="$1"
 
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
-worktree=".worktrees/$branch"
-if [ ! -d "$worktree" ]; then
-  echo "error: worktree not found: $worktree" >&2
-  exit 1
-fi
+[ -d .worktrees ] || { echo "no worktrees"; exit 0; }
 
-git worktree remove "$worktree"
-git branch -d "$branch"
+git fetch origin main --quiet
+
+# true if branch is merged into origin/main, including squash merges
+is_merged() {
+  local branch="$1"
+  if git merge-base --is-ancestor "$branch" origin/main; then
+    return 0
+  fi
+  # squash-merge check: build a throwaway squashed commit of the branch and
+  # see if origin/main already contains an equivalent patch
+  local ancestor tree squashed
+  ancestor="$(git merge-base origin/main "$branch")"
+  tree="$(git rev-parse "$branch^{tree}")"
+  squashed="$(git commit-tree "$tree" -p "$ancestor" -m tmp)"
+  [ "$(git cherry origin/main "$squashed")" = "- $squashed" ]
+}
+
+removed=0
+for dir in .worktrees/*/*/; do
+  [ -d "$dir" ] || continue
+  dir="${dir%/}"
+  branch="${dir#.worktrees/}"
+
+  if ! git rev-parse --verify --quiet "$branch" >/dev/null; then
+    echo "skip: $branch (no local branch)"
+    continue
+  fi
+
+  if is_merged "$branch"; then
+    git worktree remove "$dir"
+    git branch -D "$branch"
+    echo "removed: $branch"
+    removed=$((removed + 1))
+  else
+    echo "kept: $branch (not merged)"
+  fi
+done
+
+echo "done: $removed removed"
