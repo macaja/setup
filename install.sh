@@ -46,6 +46,7 @@ mkdir -p "$HOME/.config/yazi"
 ln -sfn "$REPO_DIR/yazi/yazi.toml" "$HOME/.config/yazi/yazi.toml"
 ln -sfn "$REPO_DIR/yazi/keymap.toml" "$HOME/.config/yazi/keymap.toml"
 ln -sfn "$REPO_DIR/yazi/package.toml" "$HOME/.config/yazi/package.toml"
+ln -sfn "$REPO_DIR/yazi/theme.toml" "$HOME/.config/yazi/theme.toml"
 # reinstall plugins listed in package.toml
 ya pkg install
 

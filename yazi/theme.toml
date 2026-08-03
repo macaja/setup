@@ -1,0 +1,6 @@
+# Partial theme — only overrides tabs; everything else stays default.
+# Yellow tabs: active = solid yellow + black text, inactive = pale yellow.
+
+[tabs]
+active = { fg = "#000000", bg = "#e0af68", bold = true }
+inactive = { fg = "#1a1b26", bg = "#f1d7a7" }
