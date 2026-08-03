@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ $# -ne 1 ]; then
+  echo "usage: clean-wt <type>/<name>" >&2
+  echo "example: clean-wt feat/user-auth" >&2
+  exit 1
+fi
+
+branch="$1"
+
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
+
+worktree=".worktrees/$branch"
+if [ ! -d "$worktree" ]; then
+  echo "error: worktree not found: $worktree" >&2
+  exit 1
+fi
+
+git worktree remove "$worktree"
+git branch -d "$branch"

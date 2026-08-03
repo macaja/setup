@@ -11,12 +11,12 @@ setup/
 ├── install.sh          # machine bootstrap: homebrew, ghostty, gh, oh-my-zsh, symlinks
 ├── CLAUDE.md           # points here
 ├── AGENTS.md
+├── bin/                # symlinked to ~/.claude/bin (on PATH via zshrc): create-wt, clean-wt
 ├── zsh/
 │   └── zshrc           # symlinked to ~/.zshrc
 └── claude/             # global Claude Code config
     ├── settings.json   # symlinked to ~/.claude/settings.json (statusline, plugins)
     ├── statusline.sh   # statusline: dir + branch + model + context, per-session color
-    ├── bin/            # symlinked to ~/.claude/bin (on PATH via zshrc): new-wt, ...
     └── skills/         # each subdir symlinked into ~/.claude/skills/
 ```
 

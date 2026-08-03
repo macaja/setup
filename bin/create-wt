@@ -2,9 +2,9 @@
 set -euo pipefail
 
 if [ $# -ne 1 ]; then
-  echo "usage: new-wt <type>/<name>" >&2
+  echo "usage: create-wt <type>/<name>" >&2
   echo "types: build chore ci docs feat fix perf refactor revert style test" >&2
-  echo "example: new-wt feat/user-auth" >&2
+  echo "example: create-wt feat/user-auth" >&2
   exit 1
 fi
 
@@ -22,5 +22,4 @@ git pull origin main
 worktree=".worktrees/$branch"
 git worktree add "$worktree" -b "$branch"
 
-cd "$worktree"
-exec claude
+echo "$root/$worktree"

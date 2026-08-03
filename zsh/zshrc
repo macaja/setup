@@ -109,3 +109,10 @@ gwtrm() { git worktree remove "$@" }
 export GITHUB_TOKEN="$(gh auth token)"
 export PATH="$HOME/.local/bin:$PATH"
 export PATH="$HOME/.claude/bin:$PATH"
+# >>> dory cli >>>
+DORY_CLI_BIN="/Users/macaja/.dory/bin"
+case ":$PATH:" in
+  *":$DORY_CLI_BIN:"*) ;;
+  *) export PATH="$DORY_CLI_BIN:$PATH" ;;
+esac
+# <<< dory cli <<<

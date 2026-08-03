@@ -33,10 +33,12 @@ install.sh            one-command machine setup
 zsh/zshrc             shell config (oh-my-zsh, plugins, PATH, aliases)
 ghostty/config        terminal config (theme, transparency, splits, keybinds)
 yazi/                 file-manager config (pane ratio, keymap, plugin list)
+bin/
+  create-wt           pull main, create .worktrees/<type>/<name>
+  clean-wt            remove .worktrees/<type>/<name> worktree + delete branch
 claude/
   settings.json       statusline, plugins, theme, permissions
   statusline.sh       dir (session-colored) + worktree + branch + model + ctx
-  bin/new-wt          pull main, create .worktrees/<type>/<name>, launch Claude
   skills/             portable skills (work skills stay local, out of this repo)
 ```
 
