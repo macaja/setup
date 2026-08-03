@@ -8,7 +8,7 @@ font-family = Menlo
 # Installed mono alternatives: Andale Mono, Monaco, PT Mono, Courier New
 # For ligatures + icon glyphs (starship/p10k): install a Nerd Font, e.g.
 #   font-family = JetBrainsMono Nerd Font
-font-size = 13
+font-size = 12
 
 # ── Theme ─────────────────────────────────────────────
 theme = TokyoNight
