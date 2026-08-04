@@ -1,6 +1,13 @@
 [user]
 	name = Mauricio
-	email = mauricio@pipelabs.com.au
+	email = cardonajaramillomauricio@gmail.com
+
+# work identity for pipelabs repos, matched by remote URL (ssh or https)
+# so it works on any machine regardless of folder layout
+[includeIf "hasconfig:remote.*.url:git@github.com:pipelabs/**"]
+	path = ~/.gitconfig-work
+[includeIf "hasconfig:remote.*.url:https://github.com/pipelabs/**"]
+	path = ~/.gitconfig-work
 
 [core]
     pager = delta

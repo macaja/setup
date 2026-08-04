@@ -38,8 +38,9 @@ ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 echo "==> zshrc"
 ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
 
-echo "==> git config (delta pager, prdiff alias)"
+echo "==> git config (delta pager, prdiff alias, work/personal identity)"
 ln -sfn "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
+ln -sfn "$REPO_DIR/git/gitconfig-work" "$HOME/.gitconfig-work"
 
 echo "==> ghostty config"
 mkdir -p "$HOME/.config/ghostty"
