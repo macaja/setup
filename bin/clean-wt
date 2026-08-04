@@ -41,7 +41,14 @@ for dir in .worktrees/*/*/; do
   fi
 
   if is_merged "$branch"; then
-    git worktree remove "$dir"
+    if [ -n "$(git -C "$dir" status --porcelain 2>/dev/null)" ]; then
+      echo "kept: $branch (merged, but has local changes)"
+      continue
+    fi
+    if ! git worktree remove "$dir"; then
+      echo "kept: $branch (could not remove worktree)"
+      continue
+    fi
     git branch -D "$branch"
     echo "removed: $branch"
     removed=$((removed + 1))
