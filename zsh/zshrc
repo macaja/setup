@@ -78,6 +78,12 @@ source $ZSH/oh-my-zsh.sh
 unalias gwtrm 2>/dev/null
 gwtrm() { git worktree remove "$@" }
 
+# create-wt: wrap the script so the shell cds into the new worktree
+create-wt() {
+  local wt
+  wt="$(command create-wt "$@")" && cd "$wt"
+}
+
 # User configuration
 
 # export MANPATH="/usr/local/man:$MANPATH"

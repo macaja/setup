@@ -17,9 +17,9 @@ esac
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 
-git pull origin main
+git pull origin main 1>&2
 
 worktree=".worktrees/$branch"
-git worktree add "$worktree" -b "$branch"
+git worktree add "$worktree" -b "$branch" 1>&2
 
 echo "$root/$worktree"
