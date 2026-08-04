@@ -17,10 +17,11 @@ BREW_BIN="$([ -x /opt/homebrew/bin/brew ] && echo /opt/homebrew/bin/brew || echo
 eval "$("$BREW_BIN" shellenv)"
 grep -qs 'brew shellenv' "$HOME/.zprofile" || echo "eval \"\$($BREW_BIN shellenv zsh)\"" >> "$HOME/.zprofile"
 
-echo "==> brew packages (ghostty, gh, yazi)"
+echo "==> brew packages (ghostty, gh, yazi, git-delta)"
 brew list --cask ghostty >/dev/null 2>&1 || brew install --cask ghostty
 brew list gh >/dev/null 2>&1 || brew install gh
 brew list yazi >/dev/null 2>&1 || brew install yazi
+brew list git-delta >/dev/null 2>&1 || brew install git-delta
 
 echo "==> oh-my-zsh"
 if [ ! -d "$HOME/.oh-my-zsh" ]; then
@@ -36,6 +37,9 @@ ZSH_CUSTOM="${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}"
 
 echo "==> zshrc"
 ln -sfn "$REPO_DIR/zsh/zshrc" "$HOME/.zshrc"
+
+echo "==> git config (delta pager, prdiff alias)"
+ln -sfn "$REPO_DIR/git/gitconfig" "$HOME/.gitconfig"
 
 echo "==> ghostty config"
 mkdir -p "$HOME/.config/ghostty"
