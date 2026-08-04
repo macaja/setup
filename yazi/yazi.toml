@@ -1,3 +1,5 @@
 [mgr]
 # parent / current folder / preview — preview gets most of the width
 ratio = [1, 2, 5]
+# show dotfiles (.gitignore, .env, etc.) by default
+show_hidden = true
