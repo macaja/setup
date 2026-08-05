@@ -60,7 +60,10 @@ mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents" "$HOME/.claude/hooks" "$H
 ln -sfn "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 ln -sfn "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 ln -sfn "$REPO_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh"
-ln -sfn "$REPO_DIR/bin" "$HOME/.claude/bin"
+mkdir -p "$HOME/.local/bin"
+for script in "$REPO_DIR"/bin/*; do
+  ln -sfn "$script" "$HOME/.local/bin/$(basename "$script")"
+done
 for skill in "$REPO_DIR"/claude/skills/*/; do
   ln -sfn "${skill%/}" "$HOME/.claude/skills/$(basename "$skill")"
 done
