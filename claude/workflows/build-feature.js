@@ -7,26 +7,30 @@ export const meta = {
   phases: [
     {
       title: 'Implement',
-      detail: 'sonnet implements the plan in a worktree',
+      detail: 'sonnet (medium effort) implements the plan in a worktree',
       model: 'sonnet',
     },
     {
       title: 'Review',
       detail:
-        'sonnet reviews small diffs, opus reviews large ones; sonnet fixes blocking findings (max 2 rounds)',
+        'sonnet reviews small diffs, opus reviews large ones (medium effort); sonnet (medium effort) fixes blocking findings (max 2 rounds)',
     },
     {
       title: 'Polish comments',
-      detail: 'fable audits and rewrites code comments in the final diff',
+      detail:
+        'fable (low effort) audits and rewrites code comments in the final diff',
       model: 'fable',
     },
     {
       title: 'Open PR',
-      detail: 'rebase onto main, push, open (or ready) the PR',
+      detail:
+        'sonnet (medium effort) rebases onto main, pushes, opens (or readies) the PR',
+      model: 'sonnet',
     },
     {
       title: 'Watch CI',
-      detail: 'haiku watches checks; sonnet fixes red CI (max 2 rounds)',
+      detail:
+        'haiku (low effort) watches checks; sonnet (medium effort) fixes red CI (max 2 rounds)',
       model: 'haiku',
     },
   ],
@@ -170,7 +174,7 @@ ${plan}
 Implement the plan completely, including tests for new behaviour per AGENTS.md testing rules. Commit in logical increments. Pre-commit only auto-fixes lint/format on staged files — it proves nothing about types or behaviour. Before your final commit, run \`pnpm typecheck\` and \`pnpm test <the files your change affects>\` from the repo root and get both green: pre-push and CI gate them anyway, but later stages expect a branch that already passes.
 ${verifyGate}
 Do not push and do not open a PR; later stages handle that.`,
-  { label: 'implement', model: 'sonnet', schema: IMPLEMENT_SCHEMA },
+  { label: 'implement', model: 'sonnet', effort: 'medium', schema: IMPLEMENT_SCHEMA },
 );
 
 if (!impl)
@@ -238,6 +242,8 @@ const reviewResult = await workflow('review-loop', {
   fixPreamble: reviewFixPreamble,
   reviewerModel,
   fixerModel: 'sonnet',
+  reviewerEffort: 'medium',
+  fixerEffort: 'medium',
   rounds: MAX_FIX_ROUNDS,
   phaseLabel: 'Review',
 });
@@ -279,7 +285,7 @@ const polish = await agent(
 For each added comment, decide: delete (the default — most comments are noise), rewrite (only when the next reader genuinely needs intent the code cannot show), or keep (already reads cold and factual). Do not touch pre-existing comments, code, tests, or docstrings that double as API documentation. Do not add new comments.
 ${REPO_RULES}
 Commit the result (hooks must pass) with subject "style: rewrite comments to read cold". If nothing needs changing, commit nothing. Do not push.`,
-  { label: 'polish-comments', model: 'fable', schema: FIX_SCHEMA },
+  { label: 'polish-comments', model: 'fable', effort: 'low', schema: FIX_SCHEMA },
 );
 if (polish && polish.status === 'done') {
   log(`Comments polished: ${polish.summary}`);
@@ -303,6 +309,7 @@ ${prBodySpec}`,
   {
     label: prNumber ? 'ready-pr' : 'open-pr',
     model: 'sonnet',
+    effort: 'medium',
     schema: PR_SCHEMA,
   },
 );
@@ -381,6 +388,7 @@ For every other failure, commit the fixes (hooks must pass) and push to the exis
     {
       label: `fix-ci-${round + 1}`,
       model: 'sonnet',
+      effort: 'medium',
       schema: FIX_SCHEMA,
       phase: 'Watch CI',
     },

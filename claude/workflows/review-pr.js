@@ -4,7 +4,14 @@ export const meta = {
     'Review a submitted PR that already has human comments: sonnet reviews the diff and treats unresolved human review feedback as blocking, sonnet fixes the blocking findings and pushes to the PR branch, sonnet re-reviews — bounded to 2 rounds. Delegates the loop to the shared review-loop workflow.',
   whenToUse:
     'After a PR is opened and picked up review comments. Pass args: { prNumber: number, rounds?: number }. Reviews the PR diff plus the existing human comments, then commits and pushes fixes to the PR branch. Returns the final findings.',
-  phases: [{ title: 'Review' }],
+  phases: [
+    {
+      title: 'Review',
+      detail:
+        'delegates to the review-loop workflow: sonnet (medium effort) reviews the PR diff + unresolved human comments, sonnet (medium effort) fixes blocking findings and pushes to the PR branch — up to `rounds` rounds (default 2)',
+      model: 'sonnet',
+    },
+  ],
 };
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;
@@ -53,6 +60,8 @@ const result = await workflow('review-loop', {
   fixPreamble,
   reviewerModel: 'sonnet',
   fixerModel: 'sonnet',
+  reviewerEffort: 'medium',
+  fixerEffort: 'medium',
   rounds,
   phaseLabel: 'Review',
 });

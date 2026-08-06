@@ -4,7 +4,26 @@ export const meta = {
     'Review an existing implementation plan against the tech design and the real codebase, fix blocking findings in the plan file. Two parallel reviewers with distinct lenses (design alignment, code reality), a fix stage that only fires when something blocking is found. The plan stays a local file only — pass publish:true to also seed its mdfm room. Ends by returning a digest — never starts executing the plan.',
   whenToUse:
     'Run standalone on an already-written plan (e.g. ~/.claude/plans/<name>.md for A3, B1, B2), or called via workflow() from plan-feature. Pass args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean, reviewerModel?, fixerModel? }. mdfmSlug defaults to the plan file basename. publish defaults to false — the plan stays local-only until the user asks to share it (opening the mdfm room makes it live). After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
-  phases: [{ title: 'Review' }, { title: 'Fix' }, { title: 'Publish' }],
+  phases: [
+    {
+      title: 'Review',
+      detail:
+        'two parallel reviewers (design alignment + code reality), medium effort; reviewerModel arg overrides, default opus',
+      model: 'opus',
+    },
+    {
+      title: 'Fix',
+      detail:
+        'edits the plan file to resolve blocking findings, high effort — skipped when none; fixerModel arg overrides, default opus',
+      model: 'opus',
+    },
+    {
+      title: 'Publish',
+      detail:
+        'haiku (low effort) pushes the plan into its mdfm room — only when publish:true',
+      model: 'haiku',
+    },
+  ],
 };
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;

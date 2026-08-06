@@ -3,14 +3,20 @@ export const meta = {
   description:
     'Reusable review→fix→re-review loop. A reviewer model classifies findings as blocking/minor, a fixer model resolves the blocking ones, the reviewer re-checks for resolution and regressions — bounded to N rounds. Context-free: callers pass the review brief and fix brief as strings, so the same loop drives both unpushed-branch review (build-feature) and submitted-PR review (review-pr). Returns the final findings; not usually run standalone.',
   whenToUse:
-    'Called via workflow() from build-feature and review-pr. Pass args: { reviewPreamble: string, fixPreamble: string, reviewerModel?: string, fixerModel?: string, rounds?: number, phaseLabel?: string }. The loop appends the JSON blocking findings to fixPreamble each round, so end fixPreamble on a line introducing them. Returns { status, findings, blocking, minorFindings, resolvedConflicts, reason? } where status is clean | blocking-remaining | fix-blocked | agent-died.',
-  phases: [{ title: 'Review' }],
+    'Called via workflow() from build-feature and review-pr. Pass args: { reviewPreamble: string, fixPreamble: string, reviewerModel?: string, fixerModel?: string, reviewerEffort?: string, fixerEffort?: string, rounds?: number, phaseLabel?: string }. The loop appends the JSON blocking findings to fixPreamble each round, so end fixPreamble on a line introducing them. Returns { status, findings, blocking, minorFindings, resolvedConflicts, reason? } where status is clean | blocking-remaining | fix-blocked | agent-died.',
+  phases: [
+    {
+      title: 'Review',
+      detail:
+        'reviewer classifies blocking/minor, fixer resolves blocking, reviewer re-checks — up to N rounds (default 2); models and efforts are caller-supplied, defaults sonnet/medium for both roles. Phase title follows the phaseLabel arg (default Review)',
+    },
+  ],
 };
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;
 if (!a || !a.reviewPreamble || !a.fixPreamble) {
   throw new Error(
-    'review-loop requires args: { reviewPreamble: string, fixPreamble: string, reviewerModel?, fixerModel?, rounds?, phaseLabel? }',
+    'review-loop requires args: { reviewPreamble: string, fixPreamble: string, reviewerModel?, fixerModel?, reviewerEffort?, fixerEffort?, rounds?, phaseLabel? }',
   );
 }
 const {
@@ -18,6 +24,8 @@ const {
   fixPreamble,
   reviewerModel = 'sonnet',
   fixerModel = 'sonnet',
+  reviewerEffort = 'medium',
+  fixerEffort = 'medium',
   rounds = 2,
   phaseLabel = 'Review',
 } = a;
@@ -63,6 +71,7 @@ phase(phaseLabel);
 let review = await agent(reviewPreamble, {
   label: 'review',
   model: reviewerModel,
+  effort: reviewerEffort,
   schema: REVIEW_SCHEMA,
   phase: phaseLabel,
 });
@@ -89,6 +98,7 @@ ${JSON.stringify(blocking, null, 2)}`,
     {
       label: `fix-review-${round}`,
       model: fixerModel,
+      effort: fixerEffort,
       schema: FIX_SCHEMA,
       phase: phaseLabel,
     },
@@ -116,6 +126,7 @@ Verify each is genuinely resolved and check the fix commits for new regressions.
     {
       label: `re-review-${round}`,
       model: reviewerModel,
+      effort: reviewerEffort,
       schema: REVIEW_SCHEMA,
       phase: phaseLabel,
     },

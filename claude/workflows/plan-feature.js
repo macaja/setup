@@ -4,7 +4,14 @@ export const meta = {
     'Plan a feature end to end: a Fable high-effort planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings. The plan stays a local file only — nothing is shared until the user asks. Returns a digest — never starts executing the plan.',
   whenToUse:
     'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes), and that slug is reused as the mdfm slug if the plan is later shared. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
-  phases: [{ title: 'Plan' }],
+  phases: [
+    {
+      title: 'Plan',
+      detail:
+        'fable (high effort) reads the design docs and codebase, writes the plan file, then hands off to the review-plan workflow (opus reviewers/fixer, see its meta for efforts)',
+      model: 'fable',
+    },
+  ],
 };
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;
