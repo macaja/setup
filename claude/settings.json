@@ -5,7 +5,19 @@
       "Skill(caveman-commit)"
     ]
   },
-  "model": "fable",
+  "model": "opus",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cat \"$HOME/.claude/hooks/communication-rules.md\""
+          }
+        ]
+      }
+    ]
+  },
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline.sh\""
@@ -22,28 +34,5 @@
     }
   },
   "skipWorkflowUsageWarning": true,
-  "theme": "dark",
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/pr-review-gate.sh\""
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "cat \"$HOME/.claude/hooks/communication-rules.md\""
-          }
-        ]
-      }
-    ]
-  }
+  "theme": "dark"
 }
