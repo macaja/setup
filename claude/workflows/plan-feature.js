@@ -1,9 +1,9 @@
 export const meta = {
   name: 'plan-feature',
   description:
-    'Plan a feature end to end: a Fable high-effort planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings. The plan stays a local file only — nothing is shared until the user asks. Returns a digest — never starts executing the plan.',
+    'Plan a feature end to end: a Fable high-effort planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings, and a haiku low-effort stage publishes the reviewed plan as a draft to its mdfm room. Returns a digest — never starts executing the plan.',
   whenToUse:
-    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes), and that slug is reused as the mdfm slug if the plan is later shared. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
+    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes), and that slug is the mdfm room slug the draft is published to. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do NOT ask to execute the plan; the user will say when.',
   phases: [
     {
       title: 'Plan',
@@ -94,6 +94,7 @@ const review = await workflow('review-plan', {
   planPath,
   designDocs: plan.sources,
   mdfmSlug: slug,
+  publish: true,
 });
 
 return {
