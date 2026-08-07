@@ -1,6 +1,7 @@
 #!/bin/bash
 # Claude Code statusline: dir + worktree + branch + dirty mark, caveman badge,
-# model name, context window usage. Reads Claude's JSON payload on stdin.
+# model name, context window usage, subscription usage. Reads Claude's JSON
+# payload on stdin.
 
 input=$(cat)
 sid=$(printf '%s' "$input" | jq -r '.session_id // empty' 2>/dev/null)
@@ -9,6 +10,8 @@ dir=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty' 2>/
 model=$(printf '%s' "$input" | jq -r '.model.display_name // empty' 2>/dev/null)
 effort=$(printf '%s' "$input" | jq -r '.effort.level // empty' 2>/dev/null)
 used_pct=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty' 2>/dev/null)
+five_hour_pct=$(printf '%s' "$input" | jq -r '.rate_limits.five_hour.used_percentage // empty' 2>/dev/null)
+seven_day_pct=$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.used_percentage // empty' 2>/dev/null)
 
 cd "$dir" 2>/dev/null
 
@@ -54,3 +57,22 @@ if [ -n "$used_pct" ]; then
   used_fmt=$(printf '%.0f' "$used_pct")
   printf '  \033[38;5;208m%s%% ctx\033[0m' "$used_fmt"
 fi
+
+# Subscription usage against the 5-hour and 7-day limits. Both are absent until
+# the first API response of the session, and absent entirely without a
+# Claude.ai subscription, so each segment prints only when its value arrives.
+# Green under half, amber approaching the cap, red once it is close.
+print_usage_segment() {
+  pct_fmt=$(printf '%.0f' "$1")
+  if [ "$pct_fmt" -ge 80 ]; then
+    usage_color=196
+  elif [ "$pct_fmt" -ge 50 ]; then
+    usage_color=220
+  else
+    usage_color=114
+  fi
+  printf '  \033[38;5;%sm%s %s%%\033[0m' "$usage_color" "$2" "$pct_fmt"
+}
+
+[ -n "$five_hour_pct" ] && print_usage_segment "$five_hour_pct" '5h'
+[ -n "$seven_day_pct" ] && print_usage_segment "$seven_day_pct" '7d'
