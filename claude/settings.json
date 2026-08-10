@@ -13,6 +13,30 @@
           {
             "type": "command",
             "command": "cat \"$HOME/.claude/hooks/communication-rules.md\""
+          },
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" start"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" stop"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" stop"
           }
         ]
       }
