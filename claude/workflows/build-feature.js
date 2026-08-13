@@ -113,8 +113,9 @@ const TESTING_RULES =
   guidelines && guidelines.available
     ? `
 Testing standard — AGENTS.md tells you to invoke a \`testing\` skill for this; you have no skill tool, and these files are what that skill resolves to. They are binding, and they are the standard AGENTS.md's own testing section layers on top of:
-- Before writing or changing ANY test file, read ${GUIDELINES_DIR}/testing/README.md, then ${GUIDELINES_DIR}/testing/writing-tests.md, then whichever of these the work touches: test-data.md (factories, composites), boundary-mocking.md (MSW, SDK, filesystem), database.md (backend tests on a real database), frontend.md (React components and hooks). All in ${GUIDELINES_DIR}/testing/.
+- Before writing or changing ANY test file, read ${GUIDELINES_DIR}/testing/README.md, then ${GUIDELINES_DIR}/testing/writing-tests.md, then ${GUIDELINES_DIR}/testing/test-data.md. Those three are mandatory for every test file, because every test constructs data. Then read whichever of these the work also touches: boundary-mocking.md (MSW, SDK, filesystem), database.md (backend tests on a real database), frontend.md (React components and hooks). All in ${GUIDELINES_DIR}/testing/.
 - The rules broken most often, so check them explicitly before you commit: flat \`test()\` only — \`describe\` and \`it\` are banned; per-test setup in a local \`setupTest()\` function, never \`beforeEach\` in a test file; \`toStrictEqual\` for structural assertions; mock at the boundary (the network, the filesystem, an SDK's command layer) and never \`fetch\`, \`axios\`, or one of our own methods.
+- Data construction is the half of the standard that gets skipped, so check it just as explicitly. A per-suite helper that builds a scenario — \`setUpModelWithAxes\`, \`buildRequestForViewer\`, anything shaped like it — is a violation whatever it is named. The only per-file setup function is \`setupTest()\`, and it builds the environment (the ability to create entities, authenticate a viewer, make a request), never the scenario. The scenario goes inline in each test body, repetition and all: verbose beats DRY here, and hidden setup is the real smell. A reusable builder is allowed only when it names a domain concept two engineers would scope identically, and then it lives in the project's shared factories/composites directory with its own test file, not beside one suite. Module-level fixture constants shared across tests are banned for the same reason.
 - Test names follow verb + outcome + when/for + condition, with \`#methodName\` prefixing a service-method test and \`[GET](/path)\` prefixing an endpoint test. Match the wording of the titles already in the file you are editing; a file whose titles drift between styles is a finding.
 - Write test titles in plain everyday language. No reviewer jargon and no shorthand a reader would have to decode.
 - AGENTS.md's "Testing Standards" section names this repo's own machinery (\`@pd4castr/server/test-utils\`, \`@pd4castr/mock-api\`, \`createTestDB\` isolation, \`MockedPartial\`). Where the two overlap, follow AGENTS.md — it knows the local helpers.
@@ -284,7 +285,7 @@ phase('Review');
 const reviewTestingDimension =
   guidelines && guidelines.available
     ? `
-Every test file the diff touches is reviewed against the Pipelabs testing standard, not against the tests already in the repo — existing files predate the standard and are not the benchmark. Read ${GUIDELINES_DIR}/testing/README.md and ${GUIDELINES_DIR}/testing/writing-tests.md before judging any test, plus the topic doc for what is being tested (test-data.md, boundary-mocking.md, database.md, frontend.md in the same directory). Check at minimum: flat \`test()\` with no \`describe\`/\`it\`; a local \`setupTest()\` instead of \`beforeEach\`; \`toStrictEqual\` for structural assertions; mocking at the boundary rather than of our own methods; and test titles that follow verb + outcome + when/for + condition (\`#methodName\` prefix for service methods, \`[GET](/path)\` for endpoints), worded in plain language and consistent within each file. A violation of any of these is blocking.
+Every test file the diff touches is reviewed against the Pipelabs testing standard, not against the tests already in the repo — existing files predate the standard and are not the benchmark. Read ${GUIDELINES_DIR}/testing/README.md, ${GUIDELINES_DIR}/testing/writing-tests.md and ${GUIDELINES_DIR}/testing/test-data.md before judging any test, plus the topic doc for what is being tested (boundary-mocking.md, database.md, frontend.md in the same directory). Check at minimum: flat \`test()\` with no \`describe\`/\`it\`; a local \`setupTest()\` instead of \`beforeEach\`; \`toStrictEqual\` for structural assertions; mocking at the boundary rather than of our own methods; and test titles that follow verb + outcome + when/for + condition (\`#methodName\` prefix for service methods, \`[GET](/path)\` for endpoints), worded in plain language and consistent within each file. Check data construction with the same weight: any per-suite helper that builds a scenario rather than the environment is blocking however it is named, \`setupTest()\` must build only the environment, scenarios belong inline in each test body, module-level fixture constants shared across tests are blocking, and a reusable builder is acceptable only when it names a domain concept and lives in the shared factories/composites directory with its own test file. A violation of any of these is blocking.
 `
     : '';
 
@@ -375,6 +376,7 @@ const prBodySpec = `Write the PR body from the branch's actual final diff (\`git
 const prAction = prNumber
   ? `Update the existing PR #${prNumber}: refresh its body with \`gh pr edit ${prNumber}\` and mark it ready for review with \`gh pr ready ${prNumber}\`. Return its URL and number.`
   : `Open the PR with \`gh pr create --head ${branch}\`, title in Conventional Commits form with a scope from the AGENTS.md scope list. Return the new PR's URL and number.`;
+const prTemplateActions = `The repo's PR template carries instructions inside its HTML comments, and some of them are actions on the PR object — labels, reviewers, draft state — not text for the body. Read every comment in the template and satisfy all of them, whatever they turn out to be in this repo. Before returning, verify with \`gh pr view <number> --json labels,body\` that the PR actually carries what the template asked for.`;
 const pr = await agent(
   `Publish the reviewed feature branch in the worktree at ${worktree} as a PR against main.
 
@@ -382,7 +384,9 @@ const pr = await agent(
 2. Push with \`git -C ${worktree} push -u origin ${branch}\`, adding \`--force-with-lease\` only if the rebase rewrote commits that were already pushed.
 3. ${prAction}
 
-${prBodySpec}`,
+${prBodySpec}
+
+${prTemplateActions}`,
   {
     label: prNumber ? 'ready-pr' : 'open-pr',
     model: 'sonnet',
