@@ -16,7 +16,16 @@
           },
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" start"
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" acquire"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
           }
         ]
       }
@@ -26,7 +35,16 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" stop"
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" release"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
           }
         ]
       }
@@ -37,6 +55,126 @@
           {
             "type": "command",
             "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" stop"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" acquire"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/hooks/caffeinate.sh\" acquire"
+          }
+        ]
+      },
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [ -f '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -r '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ] && [ -x '/Users/macaja/.orca/agent-hooks/claude-hook.sh' ]; then /bin/sh '/Users/macaja/.orca/agent-hooks/claude-hook.sh'; else { command -p cat 2>/dev/null || cat; } >/dev/null 2>&1 || :; fi",
+            "timeout": 10
           }
         ]
       }
