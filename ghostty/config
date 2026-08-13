@@ -24,9 +24,9 @@ split-divider-color = 7aa2f7
 
 # ── Transparency ──────────────────────────────────────
 # 0 = fully transparent, 1 = opaque. Tweak to taste.
-background-opacity = 0.85
+background-opacity = 0.8
 # macOS blur behind the window so text stays readable (higher = blurrier)
-background-blur = 20
+background-blur = 0
 
 # ── Window / macOS ────────────────────────────────────
 macos-titlebar-style = tabs
