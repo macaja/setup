@@ -3,7 +3,7 @@ export const meta = {
   description:
     'Implement an agreed feature plan: sonnet builds on a worktree branch, opus reviews the diff, a PR opens once clean, haiku watches CI, with bounded fix loops at each gate',
   whenToUse:
-    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, issue?: number, prNumber?: number, verifyCommands?: string[] }. prNumber points at an existing PR to push to and mark ready instead of creating one; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
+    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string }. prNumber points at an existing PR to push to and mark ready instead of creating one; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. testingStandard is the verbatim text of the Pipelabs testing guidelines — read /tmp/pipelabs-docs/guidelines/testing/README.md, writing-tests.md and test-data.md (plus database.md or frontend.md when the work touches them) and pass their concatenated contents whenever the work adds or changes tests, because a workflow script cannot read files itself and an agent handed a path may decide it already knows the rules. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
   phases: [
     {
       title: 'Preflight',
@@ -20,6 +20,11 @@ export const meta = {
       title: 'Review',
       detail:
         'sonnet reviews small diffs, opus reviews large ones (medium effort); sonnet (medium effort) fixes blocking findings (max 2 rounds)',
+    },
+    {
+      title: 'Audit tests',
+      detail:
+        'reviewer tier audits the diff-touched test files against the testing standard alone, every deviation blocking; sonnet (medium effort) fixes them (max 1 round)',
     },
     {
       title: 'Polish comments',
@@ -43,6 +48,7 @@ export const meta = {
 };
 
 const MAX_FIX_ROUNDS = 2;
+const MAX_AUDIT_FIX_ROUNDS = 1;
 const OPUS_REVIEW_LINE_THRESHOLD = 200;
 const OPUS_REVIEW_FILE_THRESHOLD = 6;
 
@@ -50,11 +56,12 @@ const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
 
 if (!parsedArgs || !parsedArgs.plan || !parsedArgs.branch) {
   throw new Error(
-    'build-feature requires args: { plan: string, branch: string, issue?: number, prNumber?: number, verifyCommands?: string[] }',
+    'build-feature requires args: { plan: string, branch: string, issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string }',
   );
 }
 
-const { plan, branch, issue, prNumber, verifyCommands } = parsedArgs;
+const { plan, branch, issue, prNumber, verifyCommands, testingStandard } =
+  parsedArgs;
 const worktree = `.worktrees/${branch}`;
 
 const GUIDELINES_DIR = '/tmp/pipelabs-docs/guidelines';
@@ -105,21 +112,37 @@ if (!guidelines || !guidelines.available) {
   );
 }
 
+const STANDARD_TEXT =
+  typeof testingStandard === 'string' && testingStandard.trim()
+    ? testingStandard.trim()
+    : '';
+
 /**
- * Appended to the repo ground rules only when the clone succeeded, so agents
- * are never sent to read paths that are not there.
+ * The caller can hand over the standard's text, and when it does that text is
+ * pasted in rather than pointed at. A path in a prompt is an instruction the
+ * model may conclude it already knows; text in the prompt is unavoidable. The
+ * pointer form stays as the fallback for runs launched without it.
+ */
+const TESTING_SOURCE = STANDARD_TEXT
+  ? `- The standard's full text is reproduced at the end of these rules, between <testing-standard> markers. Judge your tests against that text and nothing else; the tests already in this repo predate the standard and are not the benchmark. Read ${GUIDELINES_DIR}/testing/ for the topic docs it does not include — boundary-mocking.md (MSW, SDK, filesystem), database.md (backend tests on a real database), frontend.md (React components and hooks) — whichever the work touches.`
+  : `- Before writing or changing ANY test file, read ${GUIDELINES_DIR}/testing/README.md, then ${GUIDELINES_DIR}/testing/writing-tests.md, then ${GUIDELINES_DIR}/testing/test-data.md. Those three are mandatory for every test file, because every test constructs data. Then read whichever of these the work also touches: boundary-mocking.md (MSW, SDK, filesystem), database.md (backend tests on a real database), frontend.md (React components and hooks). All in ${GUIDELINES_DIR}/testing/.`;
+
+/**
+ * Appended to the repo ground rules when either the text arrived in args or
+ * the clone succeeded, so agents are never sent to read paths that are not
+ * there.
  */
 const TESTING_RULES =
-  guidelines && guidelines.available
+  STANDARD_TEXT || (guidelines && guidelines.available)
     ? `
-Testing standard — AGENTS.md tells you to invoke a \`testing\` skill for this; you have no skill tool, and these files are what that skill resolves to. They are binding, and they are the standard AGENTS.md's own testing section layers on top of:
-- Before writing or changing ANY test file, read ${GUIDELINES_DIR}/testing/README.md, then ${GUIDELINES_DIR}/testing/writing-tests.md, then ${GUIDELINES_DIR}/testing/test-data.md. Those three are mandatory for every test file, because every test constructs data. Then read whichever of these the work also touches: boundary-mocking.md (MSW, SDK, filesystem), database.md (backend tests on a real database), frontend.md (React components and hooks). All in ${GUIDELINES_DIR}/testing/.
+Testing standard — AGENTS.md tells you to invoke a \`testing\` skill for this; you have no skill tool, and this is what that skill resolves to. It is binding, and it is the standard AGENTS.md's own testing section layers on top of:
+${TESTING_SOURCE}
 - The rules broken most often, so check them explicitly before you commit: flat \`test()\` only — \`describe\` and \`it\` are banned; per-test setup in a local \`setupTest()\` function, never \`beforeEach\` in a test file; \`toStrictEqual\` for structural assertions; mock at the boundary (the network, the filesystem, an SDK's command layer) and never \`fetch\`, \`axios\`, or one of our own methods.
 - Data construction is the half of the standard that gets skipped, so check it just as explicitly. A per-suite helper that builds a scenario — \`setUpModelWithAxes\`, \`buildRequestForViewer\`, anything shaped like it — is a violation whatever it is named. The only per-file setup function is \`setupTest()\`, and it builds the environment (the ability to create entities, authenticate a viewer, make a request), never the scenario. The scenario goes inline in each test body, repetition and all: verbose beats DRY here, and hidden setup is the real smell. A reusable builder is allowed only when it names a domain concept two engineers would scope identically, and then it lives in the project's shared factories/composites directory with its own test file, not beside one suite. Module-level fixture constants shared across tests are banned for the same reason.
 - Test names follow verb + outcome + when/for + condition, with \`#methodName\` prefixing a service-method test and \`[GET](/path)\` prefixing an endpoint test. Match the wording of the titles already in the file you are editing; a file whose titles drift between styles is a finding.
 - Write test titles in plain everyday language. No reviewer jargon and no shorthand a reader would have to decode.
 - AGENTS.md's "Testing Standards" section names this repo's own machinery (\`@pd4castr/server/test-utils\`, \`@pd4castr/mock-api\`, \`createTestDB\` isolation, \`MockedPartial\`). Where the two overlap, follow AGENTS.md — it knows the local helpers.
-`
+${STANDARD_TEXT ? `\n<testing-standard>\n${STANDARD_TEXT}\n</testing-standard>\n` : ''}`
     : '';
 
 /**
@@ -281,13 +304,22 @@ log(
   `Diff: ${diffStats ? `${diffStats.filesChanged} files, ${diffStats.linesChanged} lines` : 'stats unavailable, defaulting small'} — reviewer: ${reviewerModel}`,
 );
 
+const STANDARD_AVAILABLE = Boolean(
+  STANDARD_TEXT || (guidelines && guidelines.available),
+);
+
 phase('Review');
-const reviewTestingDimension =
-  guidelines && guidelines.available
-    ? `
-Every test file the diff touches is reviewed against the Pipelabs testing standard, not against the tests already in the repo — existing files predate the standard and are not the benchmark. Read ${GUIDELINES_DIR}/testing/README.md, ${GUIDELINES_DIR}/testing/writing-tests.md and ${GUIDELINES_DIR}/testing/test-data.md before judging any test, plus the topic doc for what is being tested (boundary-mocking.md, database.md, frontend.md in the same directory). Check at minimum: flat \`test()\` with no \`describe\`/\`it\`; a local \`setupTest()\` instead of \`beforeEach\`; \`toStrictEqual\` for structural assertions; mocking at the boundary rather than of our own methods; and test titles that follow verb + outcome + when/for + condition (\`#methodName\` prefix for service methods, \`[GET](/path)\` for endpoints), worded in plain language and consistent within each file. Check data construction with the same weight: any per-suite helper that builds a scenario rather than the environment is blocking however it is named, \`setupTest()\` must build only the environment, scenarios belong inline in each test body, module-level fixture constants shared across tests are blocking, and a reusable builder is acceptable only when it names a domain concept and lives in the shared factories/composites directory with its own test file. A violation of any of these is blocking.
+/**
+ * Structure of a test file belongs to the dedicated audit that follows, which
+ * has no severity dial to turn down. Splitting it out keeps this reviewer from
+ * weighing a standard violation against everything else it found and settling
+ * on minor.
+ */
+const reviewTestingDimension = STANDARD_AVAILABLE
+  ? `
+Whether the new behaviour is tested at all, and whether those tests would actually fail if the behaviour broke, is yours. How the test files are structured — flat \`test()\`, \`setupTest()\`, data construction, titles, where mocks sit — belongs to a separate audit that runs after you, so leave it alone and do not spend findings on it.
 `
-    : '';
+  : '';
 
 const reviewPreamble = `You are reviewing an unpushed feature branch before it becomes a PR. Repo root is the current directory; the branch lives in the worktree at ${worktree}. Read AGENTS.md first — its conventions are binding and convention violations that tooling cannot catch are in scope.
 
@@ -296,7 +328,7 @@ Review the full diff (\`git -C ${worktree} diff main...HEAD\`) and read surround
 ${plan}
 ${reviewTestingDimension}
 Classify each finding:
-- blocking: correctness bugs, broken or missing tests for new behaviour, tests that violate the testing standard, deviations from the plan, security problems, AGENTS.md violations that hooks/CI will not catch.
+- blocking: correctness bugs, broken or missing tests for new behaviour, tests that pass whether or not the code works, deviations from the plan, security problems, AGENTS.md violations that hooks/CI will not catch.
 - minor: real but non-blocking improvements. Report them; they will be surfaced to the human reviewer, not fixed here.
 Do not modify any files. No praise, no restating the diff.`;
 
@@ -353,8 +385,85 @@ if (reviewResult.status === 'blocking-remaining')
     minorFindings: reviewResult.minorFindings,
   };
 
-const minorFindings = reviewResult.minorFindings;
+const minorFindings = reviewResult.minorFindings.slice();
 log(`Review clean (${minorFindings.length} minor finding(s) noted)`);
+
+/**
+ * A single-dimension pass with no minor category. Severity is where the
+ * general review leaks: a standard violation sitting next to correctness
+ * findings reads as small and gets graded away, and it ships. Here there is
+ * nothing to weigh it against and nothing to downgrade it to.
+ */
+if (STANDARD_AVAILABLE) {
+  phase('Audit tests');
+  const auditPreamble = `You are auditing the test files touched by an unpushed feature branch against the Pipelabs testing standard. That is the whole job: not correctness, not the plan, not repo conventions the standard is silent on. Another reviewer has already covered those and its findings are fixed.
+
+List the touched files with \`git -C ${worktree} diff --name-only main...HEAD\`, then read every test file among them in full from the worktree — the diff hunks alone hide structure. Read enough surrounding source to tell what each test is for. If the diff touches no test file, return no findings.
+
+${
+  STANDARD_TEXT
+    ? `The standard is reproduced below. Judge against this text, not against the tests already in the repo — existing files predate the standard and are not the benchmark.
+
+<testing-standard>
+${STANDARD_TEXT}
+</testing-standard>`
+    : `Read ${GUIDELINES_DIR}/testing/README.md, ${GUIDELINES_DIR}/testing/writing-tests.md and ${GUIDELINES_DIR}/testing/test-data.md in full before judging anything, plus the topic doc matching what is under test (boundary-mocking.md, database.md, frontend.md in the same directory). Judge against those files, not against the tests already in the repo — existing files predate the standard and are not the benchmark.`
+}
+
+Report every deviation as blocking. This audit has no minor category and you may not invent one. Do not weigh a violation against how small it looks, how few lines it spans, how consistent it is with a neighbouring file, or how much churn the fix costs — none of that changes whether the file matches the standard. Where the standard and this repo's AGENTS.md overlap, AGENTS.md wins on local helper names only; everything about structure, setup, data construction and naming comes from the standard.
+
+Two things get missed most, so state a verdict on each explicitly for every file you audit: whether the per-file setup function builds only the environment and never a scenario, and whether the file's test titles follow the standard's naming form and are consistent with each other.
+
+Do not modify any files. No praise, no restating the diff.`;
+
+  const auditFixPreamble = `A test-standard audit found violations in the test files on the feature branch in the worktree at ${worktree}. Fix exactly these — touch test files only, and do not weaken what any test asserts: a restructured test must still fail for the same reason it would have failed before you touched it.
+${REPO_RULES}
+Re-run every affected test file with \`pnpm test <files>\` from the repo root and get it green before committing. Commit with subject "test: align tests with the testing standard" (hooks must pass). Do not push.
+
+The violations to fix:`;
+
+  const auditResult = await workflow('review-loop', {
+    reviewPreamble: auditPreamble,
+    fixPreamble: auditFixPreamble,
+    reviewerModel,
+    fixerModel: 'sonnet',
+    reviewerEffort: 'medium',
+    fixerEffort: 'medium',
+    rounds: MAX_AUDIT_FIX_ROUNDS,
+    phaseLabel: 'Audit tests',
+  });
+
+  if (auditResult.status === 'agent-died') {
+    log(
+      `Test-standard audit did not complete (${auditResult.reason}) — continuing with tests as written`,
+    );
+  } else if (auditResult.status === 'fix-blocked') {
+    return {
+      status: 'blocked',
+      stage: 'test-standard-fix',
+      branch,
+      worktree,
+      reason: auditResult.reason,
+      outstandingFindings: auditResult.blocking,
+      minorFindings,
+    };
+  } else if (auditResult.status === 'blocking-remaining') {
+    return {
+      status: 'test-standard-blocked',
+      branch,
+      worktree,
+      reason: `test-standard violations remain after ${MAX_AUDIT_FIX_ROUNDS} fix round${MAX_AUDIT_FIX_ROUNDS === 1 ? '' : 's'}`,
+      outstandingFindings: auditResult.blocking,
+      minorFindings,
+    };
+  } else {
+    log('Test-standard audit clean');
+  }
+} else {
+  log(
+    'Testing standard unavailable — skipping the test-standard audit; test structure is unchecked on this run',
+  );
+}
 
 phase('Polish comments');
 const polish = await agent(
