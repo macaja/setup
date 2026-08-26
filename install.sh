@@ -80,4 +80,10 @@ for command in "$REPO_DIR"/claude/commands/*.md; do
   ln -sfn "$command" "$HOME/.claude/commands/$(basename "$command")"
 done
 
+echo "==> collapse orca's inlined hook blobs in settings.json"
+# Orca rewrites settings.json on update and re-inlines a 2.5 KB one-liner into
+# eleven hook events; this shrinks each back to a readable one. Re-run
+# `collapse-orca-hooks` by hand after an Orca update.
+"$REPO_DIR/bin/collapse-orca-hooks" "$REPO_DIR/claude/settings.json"
+
 echo "done — open a new terminal (or: source ~/.zshrc)"

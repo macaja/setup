@@ -28,9 +28,14 @@ The installer is idempotent. It:
    `settings.json`, `statusline.sh`, and each entry under `claude/skills/`,
    `claude/agents/`, `claude/hooks/`, `claude/workflows/` and
    `claude/commands/`.
+10. Runs `collapse-orca-hooks`, which shrinks the eleven ~2.5 KB one-liners
+    Orca inlines into `settings.json` down to one readable line each.
 
 Claude Code plugins reinstall themselves from `enabledPlugins` in
 `claude/settings.json`.
+
+Orca re-inlines its hook blobs whenever it updates. Run `collapse-orca-hooks`
+again afterwards to shrink them back.
 
 ## Layout
 
@@ -46,6 +51,7 @@ media/                docker compose stack for the movie/series setup (see media
 bin/                  → ~/.local/bin
   create-wt           pull main, create .worktrees/<type>/<name>
   clean-wt            remove worktrees whose branch is merged into main
+  collapse-orca-hooks shrink Orca's inlined hook blobs in settings.json
 claude/               → ~/.claude
   CLAUDE.md           global instructions (communication rules, language)
   settings.json       statusline, plugins, theme, permissions, hooks

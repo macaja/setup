@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Collapse Orca's inlined hook blobs in Claude Code settings.json.
+
+Orca injects the same ~2.5 KB one-liner into eleven hook events. All of it
+resolves to a single call to ~/.orca/agent-hooks/claude-hook.sh; the rest is a
+Windows PowerShell fallback and an empty-$HOME guard, both dead on macOS. This
+rewrites every copy to the short equivalent. Orca puts the blobs back when it
+updates, so re-run after an Orca update. Idempotent.
+"""
+import json
+import os
+import pathlib
+import sys
+
+SHORT = (
+    'if [ -x "$HOME/.orca/agent-hooks/claude-hook.sh" ]; then '
+    'sh "$HOME/.orca/agent-hooks/claude-hook.sh"; '
+    'else cat >/dev/null 2>&1 || :; printf \'{}\\n\'; fi'
+)
+MARKER = "orca/agent-hooks"
+
+path = pathlib.Path(sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/.claude/settings.json"))
+# settings.json is a symlink into the setup repo; rewrite the real file.
+path = path.resolve()
+
+settings = json.loads(path.read_text())
+
+collapsed = 0
+for entries in settings.get("hooks", {}).values():
+    for group in entries:
+        for hook in group.get("hooks", []):
+            command = hook.get("command", "")
+            if MARKER in command and command != SHORT:
+                hook["command"] = SHORT
+                collapsed += 1
+
+if not collapsed:
+    print(f"collapse-orca-hooks: nothing to do ({path})")
+    sys.exit(0)
+
+path.write_text(json.dumps(settings, indent=2) + "\n")
+print(f"collapse-orca-hooks: collapsed {collapsed} hook(s) in {path}")
