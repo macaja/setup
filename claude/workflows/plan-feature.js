@@ -20,11 +20,17 @@ if (!a || !a.feature || !a.branch) {
     'plan-feature requires args: { feature: string, branch: string, designDocs?: string[], planDir?: string }',
   );
 }
+// Workflow scripts run sandboxed without Node APIs, so process may not exist at
+// all; typeof keeps that from throwing and the literal stays as the fallback.
+const HOME =
+  typeof process !== 'undefined' && process.env && process.env.HOME
+    ? process.env.HOME
+    : '/Users/macaja';
 const {
   feature,
   branch,
   designDocs = [],
-  planDir = '/Users/macaja/.claude/plans',
+  planDir = `${HOME}/.claude/plans`,
 } = a;
 const slug = branch.replace(/\//g, '-');
 const planPath = `${planDir}/${slug}.md`;

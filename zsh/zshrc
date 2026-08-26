@@ -119,7 +119,7 @@ fi
 
 export PATH="$HOME/.local/bin:$PATH"
 # >>> dory cli >>>
-DORY_CLI_BIN="/Users/macaja/.dory/bin"
+DORY_CLI_BIN="$HOME/.dory/bin"
 case ":$PATH:" in
   *":$DORY_CLI_BIN:"*) ;;
   *) export PATH="$DORY_CLI_BIN:$PATH" ;;
