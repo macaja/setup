@@ -1,14 +1,14 @@
 export const meta = {
   name: 'plan-feature',
   description:
-    'Plan a feature end to end: a Fable high-effort planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings, and a haiku low-effort stage publishes the reviewed plan as a draft to its mdfm room. Returns a digest — never starts executing the plan.',
+    'Plan a feature end to end: a Fable planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings. The plan stays a local file — nothing is published. Returns a digest — never starts executing the plan.',
   whenToUse:
-    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes), and that slug is the mdfm room slug the draft is published to. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do NOT ask to execute the plan; the user will say when.',
+    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes). The finished plan stays a local file; publish it only if the user asks. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do NOT ask to execute the plan; the user will say when.',
   phases: [
     {
       title: 'Plan',
       detail:
-        'fable (high effort) reads the design docs and codebase, writes the plan file, then hands off to the review-plan workflow (opus reviewers/fixer, see its meta for efforts)',
+        'fable (medium effort) reads the design docs and codebase, writes the plan file, then hands off to the review-plan workflow (see its meta for reviewer models and efforts)',
       model: 'fable',
     },
   ],
@@ -65,6 +65,7 @@ ${feature}
 ${designDocsBlock}
 
 How to work:
+- Read each file once, in full, with the Read tool. Do not slice one file across several sed/head calls, and issue independent reads as parallel tool calls in a single turn — every extra turn re-sends the whole context and is the dominant cost of this workflow.
 - Read the design docs AND the code they touch. Every file path, symbol, and pattern the plan cites must exist in the current working tree — verify by reading, include file:line references where they help the implementer.
 - Use relative paths from the repo root in every tool call except writing the plan file itself.
 - Plan structure: Context (what this deliverable is, its design sources, agreed decisions, explicit out-of-scope list), Cambios (numbered, per package/module, concrete: files, symbols, patterns to follow), Tests, Riesgos/bordes, Verificación. Match the language of the feature context (Spanish context → Spanish plan; code identifiers stay as-is).
@@ -76,7 +77,7 @@ Return sources (the repo-relative design docs + key code files the plan relies o
   {
     label: 'plan',
     model: 'fable',
-    effort: 'high',
+    effort: 'medium',
     schema: PLAN_SCHEMA,
     phase: 'Plan',
   },
@@ -94,7 +95,7 @@ const review = await workflow('review-plan', {
   planPath,
   designDocs: plan.sources,
   mdfmSlug: slug,
-  publish: true,
+  publish: false,
 });
 
 return {

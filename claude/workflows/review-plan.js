@@ -3,12 +3,12 @@ export const meta = {
   description:
     'Review an existing implementation plan against the tech design and the real codebase, fix blocking findings in the plan file. Two parallel reviewers with distinct lenses (design alignment, code reality), a fix stage that only fires when something blocking is found. The plan stays a local file only — pass publish:true to also seed its mdfm room. Ends by returning a digest — never starts executing the plan.',
   whenToUse:
-    'Run standalone on an already-written plan (e.g. ~/.claude/plans/<name>.md for A3, B1, B2), or called via workflow() from plan-feature. Pass args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean, reviewerModel?, fixerModel? }. mdfmSlug defaults to the plan file basename. publish defaults to false — the plan stays local-only until the user asks to share it (opening the mdfm room makes it live). After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
+    'Run standalone on an already-written plan (e.g. ~/.claude/plans/<name>.md for A3, B1, B2), or called via workflow() from plan-feature. Pass args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean, designReviewerModel?, codeReviewerModel?, fixerModel? }. mdfmSlug defaults to the plan file basename. publish defaults to false — the plan stays local-only until the user asks to share it (opening the mdfm room makes it live). After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
   phases: [
     {
       title: 'Review',
       detail:
-        'two parallel reviewers (design alignment + code reality), medium effort; reviewerModel arg overrides, default opus',
+        'two parallel reviewers, medium effort: design alignment on opus (judgement), code reality on sonnet (mechanical existence checks); designReviewerModel / codeReviewerModel args override',
       model: 'opus',
     },
     {
@@ -32,13 +32,9 @@ if (!a || !a.planPath) {
     'review-plan requires args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean }',
   );
 }
-const {
-  planPath,
-  designDocs = [],
-  publish = false,
-  reviewerModel = 'opus',
-  fixerModel = 'opus',
-} = a;
+const { planPath, designDocs = [], publish = false, fixerModel = 'opus' } = a;
+const designReviewerModel = a.designReviewerModel || a.reviewerModel || 'opus';
+const codeReviewerModel = a.codeReviewerModel || a.reviewerModel || 'sonnet';
 const planBasename = planPath.split('/').pop().replace(/\.md$/, '');
 const mdfmSlug = a.mdfmSlug || planBasename;
 
@@ -105,7 +101,8 @@ const designDocsBlock =
     ? `Design docs to read (paths relative to the repo root):\n${designDocs.map((d) => `- ${d}`).join('\n')}`
     : 'No design doc paths were provided: locate the relevant design docs yourself from the references inside the plan (a plan normally cites its design sources in a "Diseño"/"Design" line).';
 
-const commonRules = `Use relative paths from the repo root in every tool call except when reading the plan file itself (absolute path given above).
+const commonRules = `Read each file once, in full, with the Read tool. Do not slice one file across several sed/head calls, and issue independent reads as parallel tool calls in a single turn — every extra turn re-sends the whole context and is the dominant cost of this workflow.
+Use relative paths from the repo root in every tool call except when reading the plan file itself (absolute path given above).
 Findings must be about the PLAN being wrong or stale — not about improvements you would personally make. A "blocking" finding means executing the plan as written would contradict the design, fail, or build the wrong thing. Style, phrasing, and nice-to-haves are "minor".
 Do NOT edit any file. Return findings only. Your final output is consumed by a script, not a human.`;
 
@@ -128,8 +125,9 @@ Respect any "decisiones acordadas"/"agreed decisions" section: those are user de
 ${commonRules}`,
     {
       label: 'review:design-alignment',
-      model: reviewerModel,
+      model: designReviewerModel,
       effort: 'medium',
+      agentType: 'Explore',
       schema: FINDINGS_SCHEMA,
       phase: 'Review',
     },
@@ -152,8 +150,9 @@ Respect any "decisiones acordadas"/"agreed decisions" section: those are user de
 ${commonRules}`,
     {
       label: 'review:code-reality',
-      model: reviewerModel,
+      model: codeReviewerModel,
       effort: 'medium',
+      agentType: 'Explore',
       schema: FINDINGS_SCHEMA,
       phase: 'Review',
     },
