@@ -41,6 +41,7 @@ git/
   gitconfig-work      work identity, included conditionally from gitconfig
 ghostty/config        terminal config (theme, transparency, splits, keybinds)
 yazi/                 file-manager config (pane ratio, keymap, theme, plugins)
+media/                docker compose stack for the movie/series setup (see media/README.md)
 bin/                  → ~/.local/bin
   create-wt           pull main, create .worktrees/<type>/<name>
   clean-wt            remove worktrees whose branch is merged into main
