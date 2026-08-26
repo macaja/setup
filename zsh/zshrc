@@ -112,7 +112,11 @@ create-wt() {
 # Example aliases
 # alias zshconfig="mate ~/.zshrc"
 # alias ohmyzsh="mate ~/.oh-my-zsh"
-export GITHUB_TOKEN="$(gh auth token)"
+
+if command -v gh >/dev/null; then
+  export GITHUB_TOKEN="$(gh auth token)"
+fi
+
 export PATH="$HOME/.local/bin:$PATH"
 # >>> dory cli >>>
 DORY_CLI_BIN="/Users/macaja/.dory/bin"
