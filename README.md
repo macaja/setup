@@ -26,7 +26,8 @@ The installer is idempotent. It:
 8. Symlinks every script in `bin/` into `~/.local/bin` (on PATH via `zshrc`).
 9. Symlinks Claude Code global config into `~/.claude`: `CLAUDE.md`,
    `settings.json`, `statusline.sh`, and each entry under `claude/skills/`,
-   `claude/agents/`, `claude/hooks/` and `claude/workflows/`.
+   `claude/agents/`, `claude/hooks/`, `claude/workflows/` and
+   `claude/commands/`.
 
 Claude Code plugins reinstall themselves from `enabledPlugins` in
 `claude/settings.json`.
@@ -48,11 +49,12 @@ bin/                  → ~/.local/bin
 claude/               → ~/.claude
   CLAUDE.md           global instructions (communication rules, language)
   settings.json       statusline, plugins, theme, permissions, hooks
-  statusline.sh       dir (session-colored) + worktree + branch + model + ctx
+  statusline.sh       worktree + caveman badge + model + context + usage
   skills/             portable skills (work skills stay local, out of this repo)
   agents/             subagent definitions (doc-auditor)
   hooks/              scripts settings.json points at (see below)
   workflows/          multi-agent workflow scripts (see below)
+  commands/           slash commands (see below)
 ```
 
 ### Hooks
@@ -83,6 +85,15 @@ Scripts for `/workflows`, each one a fan-out of subagents:
   comments as blocking, and pushes the fixes.
 - `review-loop.js` — the shared review→fix→re-review loop the other two
   review workflows call.
+
+### Commands
+
+Slash commands available in every session:
+
+- `/handoff` — hands a piece of work from the current conversation to
+  another Orca worktree: writes a self-contained brief to
+  `~/.claude/plans/<slug>.md` and starts a Claude session there pointed at
+  it.
 
 ## Updating
 

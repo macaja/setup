@@ -56,7 +56,7 @@ ln -sfn "$REPO_DIR/yazi/theme.toml" "$HOME/.config/yazi/theme.toml"
 ya pkg install
 
 echo "==> claude config"
-mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents" "$HOME/.claude/hooks" "$HOME/.claude/workflows"
+mkdir -p "$HOME/.claude/skills" "$HOME/.claude/agents" "$HOME/.claude/hooks" "$HOME/.claude/workflows" "$HOME/.claude/commands"
 ln -sfn "$REPO_DIR/claude/CLAUDE.md" "$HOME/.claude/CLAUDE.md"
 ln -sfn "$REPO_DIR/claude/settings.json" "$HOME/.claude/settings.json"
 ln -sfn "$REPO_DIR/claude/statusline.sh" "$HOME/.claude/statusline.sh"
@@ -75,6 +75,9 @@ for hook in "$REPO_DIR"/claude/hooks/*; do
 done
 for workflow in "$REPO_DIR"/claude/workflows/*.js; do
   ln -sfn "$workflow" "$HOME/.claude/workflows/$(basename "$workflow")"
+done
+for command in "$REPO_DIR"/claude/commands/*.md; do
+  ln -sfn "$command" "$HOME/.claude/commands/$(basename "$command")"
 done
 
 echo "done — open a new terminal (or: source ~/.zshrc)"
