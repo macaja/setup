@@ -1,9 +1,9 @@
 export const meta = {
   name: 'review-plan',
   description:
-    'Review an existing implementation plan against the tech design and the real codebase, fix blocking findings in the plan file. Two parallel reviewers with distinct lenses (design alignment, code reality), a fix stage that only fires when something blocking is found. The plan stays a local file only — pass publish:true to also seed its mdfm room. Ends by returning a digest — never starts executing the plan.',
+    'Review an existing implementation plan against the tech design and the real codebase, fix blocking findings in the plan file. Two parallel reviewers with distinct lenses (design alignment, code reality), a fix stage that only fires when something blocking is found. The plan stays a local file. Ends by returning a digest — never starts executing the plan.',
   whenToUse:
-    'Run standalone on an already-written plan (e.g. ~/.claude/plans/<name>.md for A3, B1, B2), or called via workflow() from plan-feature. Pass args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean, designReviewerModel?, codeReviewerModel?, fixerModel? }. mdfmSlug defaults to the plan file basename. publish defaults to false — the plan stays local-only until the user asks to share it (opening the mdfm room makes it live). After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
+    'Run standalone on an already-written plan (e.g. ~/.claude/plans/<name>.md for A3, B1, B2), or called via workflow() from plan-feature. Pass args: { planPath: string, designDocs?: string[], designReviewerModel?, codeReviewerModel?, fixerModel? }. After it returns, report the digest to the user and WAIT for orders — do not start executing the plan.',
   phases: [
     {
       title: 'Review',
@@ -17,26 +17,18 @@ export const meta = {
         'edits the plan file to resolve blocking findings, high effort — skipped when none; fixerModel arg overrides, default opus',
       model: 'opus',
     },
-    {
-      title: 'Publish',
-      detail:
-        'haiku (low effort) pushes the plan into its mdfm room — only when publish:true',
-      model: 'haiku',
-    },
   ],
 };
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;
 if (!a || !a.planPath) {
   throw new Error(
-    'review-plan requires args: { planPath: string, designDocs?: string[], mdfmSlug?: string, publish?: boolean }',
+    'review-plan requires args: { planPath: string, designDocs?: string[] }',
   );
 }
-const { planPath, designDocs = [], publish = false, fixerModel = 'opus' } = a;
+const { planPath, designDocs = [], fixerModel = 'opus' } = a;
 const designReviewerModel = a.designReviewerModel || a.reviewerModel || 'opus';
 const codeReviewerModel = a.codeReviewerModel || a.reviewerModel || 'sonnet';
-const planBasename = planPath.split('/').pop().replace(/\.md$/, '');
-const mdfmSlug = a.mdfmSlug || planBasename;
 
 const FINDINGS_SCHEMA = {
   type: 'object',
@@ -84,15 +76,6 @@ const FIX_SCHEMA = {
       },
     },
     blockedReason: { type: 'string' },
-  },
-};
-
-const PUBLISH_SCHEMA = {
-  type: 'object',
-  required: ['status'],
-  properties: {
-    status: { enum: ['published', 'failed'] },
-    detail: { type: 'string' },
   },
 };
 
@@ -208,47 +191,15 @@ ${JSON.stringify(minor, null, 2)}`,
       findings,
       blocking,
       minor,
-      mdfmSlug,
-      published: false,
     };
   }
 } else {
   log('No blocking findings — skipping fix stage');
 }
 
-let published = false;
-let publishDetail = null;
-if (publish) {
-  phase('Publish');
-  const pub = await agent(
-    `Publish a plan file to its mdfm collab room. Mechanical task, no judgement needed.
-
-1. ToolSearch with query "select:mcp__mdfm__open_room,mcp__mdfm__replace" to load the mdfm tools.
-2. Read the plan file: ${planPath}
-3. mcp__mdfm__open_room with slug "${mdfmSlug}".
-4. mcp__mdfm__replace with slug "${mdfmSlug}", the full plan markdown, and the baseHash returned by open_room (omit baseHash only if the room came back empty).
-5. If replace is rejected as stale, re-run open_room and retry once with the fresh baseHash.
-
-Return status "published" on success; on any failure return status "failed" with the error in detail.`,
-    {
-      label: 'publish-mdfm',
-      model: 'haiku',
-      effort: 'low',
-      schema: PUBLISH_SCHEMA,
-      phase: 'Publish',
-    },
-  );
-  published = !!pub && pub.status === 'published';
-  publishDetail = pub ? pub.detail : 'publish agent died or was skipped';
-  if (!published) log(`mdfm publish failed: ${publishDetail}`);
-}
-
 return {
   status: 'done',
   planPath,
-  mdfmSlug,
-  published,
-  publishDetail,
   blocking,
   minor,
   fix,
