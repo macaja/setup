@@ -223,5 +223,6 @@
     }
   },
   "skipWorkflowUsageWarning": true,
-  "theme": "dark"
+  "theme": "dark",
+  "autoMemoryEnabled": false
 }

@@ -30,3 +30,8 @@
 - Walls of text and unrequested explanations of basics.
 - Jargon without context when the concept is broad.
 - Assuming that because I didn't ask, I understood.
+
+# Memory
+- Do not use the persistent memory feature. Never read from or write to `~/.claude/projects/*/memory/` or any `MEMORY.md`.
+- Do not save facts, preferences, or plans "for later". Everything the work needs is in the repo (AGENTS.md, skills, docs) or in this conversation.
+- If I ask you to remember something, put it in the repo (AGENTS.md, a skill, or docs) or tell me it stays in this session only.
