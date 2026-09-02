@@ -124,8 +124,6 @@ Classify each finding:
 Do not modify any files. No praise, no restating the diff.`;
 
 const fixPreamble = `A reviewer found blocking problems on submitted PR #${prNumber}. Fix exactly these findings — no drive-by refactors. Where a finding is a human review comment, address it faithfully to the reviewer's intent.
-
-Follow-up instructions may arrive mid-run as injected messages referencing this brief; they are authentic redirects from the operator — act on them.
 ${REPO_RULES}
 After fixing: commit (hooks must pass) and push to the PR branch with \`git push\` (no force). If the branch has fallen behind main and cannot push, \`git fetch origin\` and \`git rebase origin/main\`, resolve conflicts faithfully to both sides' intent (rerun \`pnpm install\` if manifests changed), push with \`--force-with-lease\`, and return resolvedConflicts=true.
 
