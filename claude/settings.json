@@ -21,7 +21,7 @@
       "Skill(init)"
     ]
   },
-  "model": "sonnet",
+  "model": "opus",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -222,7 +222,7 @@
       }
     }
   },
+  "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
-  "theme": "dark",
-  "autoMemoryEnabled": false
+  "theme": "dark"
 }
