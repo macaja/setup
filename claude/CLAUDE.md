@@ -35,3 +35,16 @@
 - Do not use the persistent memory feature. Never read from or write to `~/.claude/projects/*/memory/` or any `MEMORY.md`.
 - Do not save facts, preferences, or plans "for later". Everything the work needs is in the repo (AGENTS.md, skills, docs) or in this conversation.
 - If I ask you to remember something, put it in the repo (AGENTS.md, a skill, or docs) or tell me it stays in this session only.
+- Durable knowledge lands somewhere I can see and review: project documentation, an `AGENTS.md` / `CLAUDE.md` amendment, or a ticket. Never a private store only you read.
+- Don't create or update files under `memory/`, and don't add `MEMORY.md` pointers.
+- When you spot something worth keeping, say so and suggest where it belongs, then let me route it.
+- Reading memories already recalled into context is fine; creating new ones is not.
+
+# Subagent models
+
+- **DO NOT USE FABLE SUBAGENTS UNLESS I EXPLICITLY ASK.** Subagents inherit the session model (Fable) by default, so always pass an explicit `model` on every Agent/Workflow agent call: `haiku` for mechanical or lookup work, `sonnet` for routine coding and searching, `opus` for complex reasoning, review, or planning.
+- Never pass `model: "fable"` and never omit `model` (omitting inherits Fable).
+- Exception: `subagent_type: "fork"` always inherits Fable and ignores overrides, so don't use forks unless I ask.
+- I don't want the session model doing every operation. Delegate the mechanical, search, and routine coding work to subagents with an explicit `model`.
+- **Prose is Fable-only.** Writing or rewriting documentation, PR text, tickets, or any other prose is done inline by the main agent, never delegated to a subagent of any model.
+- When the two rules above collide — a one-file edit that is also prose — prose wins: if what I'm writing or rewriting is text a person reads (a `.md` file, a code comment, a ticket, a commit message), do it inline, even when the operation looks mechanical. Delegation is for code changes and searches, not for text.
