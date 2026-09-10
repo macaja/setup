@@ -1,6 +1,7 @@
 ---
 name: doc-auditor
 description: Audits tech design docs and documentation changes for contradictions with other docs, claims not validated against the actual code, and missing edge-case / unhappy-path coverage. Use when reviewing a design doc, a docs PR, or before merging documentation changes.
+model: opus
 tools: Read, Grep, Glob, Bash
 ---
 

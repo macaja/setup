@@ -21,7 +21,7 @@
       "Skill(init)"
     ]
   },
-  "model": "opus",
+  "model": "fable",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -224,5 +224,8 @@
   },
   "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
-  "theme": "dark"
+  "theme": "dark",
+  "env": {
+    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+  }
 }
