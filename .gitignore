@@ -5,3 +5,10 @@ media/config/
 # Claude Code writes these next to settings.json when it rewrites it
 claude/settings.json.bak
 claude/settings.json.bak-*
+
+# Stray files created by a mistyped `export VAR=value` (the value ends up as a
+# filename). Anything whose name looks like a secret assignment stays out.
+*SECRET*=*
+*_KEY=*
+*TOKEN*=*
+*PASSWORD*=*
