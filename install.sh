@@ -68,9 +68,11 @@ for skill in "$REPO_DIR"/claude/skills/*/; do
   ln -sfn "${skill%/}" "$HOME/.claude/skills/$(basename "$skill")"
 done
 for agent in "$REPO_DIR"/claude/agents/*.md; do
+  [ -e "$agent" ] || continue
   ln -sfn "$agent" "$HOME/.claude/agents/$(basename "$agent")"
 done
 for hook in "$REPO_DIR"/claude/hooks/*; do
+  [ -e "$hook" ] || continue
   ln -sfn "$hook" "$HOME/.claude/hooks/$(basename "$hook")"
 done
 for workflow in "$REPO_DIR"/claude/workflows/*.js; do

@@ -57,7 +57,7 @@ claude/               → ~/.claude
   settings.json       statusline, plugins, theme, permissions, hooks
   statusline.sh       worktree + caveman badge + model + context + usage
   skills/             portable skills (work skills stay local, out of this repo)
-  agents/             subagent definitions (doc-auditor)
+  agents/             subagent definitions (empty; parked ones live in agents-disabled/)
   hooks/              scripts settings.json points at (see below)
   workflows/          multi-agent workflow scripts (see below)
   commands/           slash commands (see below)
@@ -66,16 +66,9 @@ claude/               → ~/.claude
 ### Hooks
 
 Shell scripts and text that `settings.json` wires into Claude Code events.
-
-- `caffeinate.sh` — keeps the Mac awake only while a session is working.
-  `acquire` (PreToolUse, SubagentStop) holds a `caffeinate` with a TTL and
-  renews it lazily; `release` (Stop) shrinks the hold to a grace window;
-  `stop` drops it. The TTL means a session that dies without releasing
-  costs at most one window of wakefulness instead of holding the machine
-  awake forever. Tunable with `CLAUDE_CAFFEINATE_TTL` and
-  `CLAUDE_CAFFEINATE_GRACE`.
-- `communication-rules.md` — injected on every prompt so the standing
-  answer-style preferences survive a long session.
+Currently only Orca's own hooks are wired; `claude/hooks/` is empty. Anything
+that must hold across a whole session lives in `CLAUDE.md` instead of a
+per-prompt hook, because a hook re-injects its text on every message.
 
 ### Workflows
 

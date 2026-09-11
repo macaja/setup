@@ -24,7 +24,7 @@ setup/
     ├── statusline.sh   # statusline: dir + branch + model + context, per-session color
     ├── skills/         # each subdir symlinked into ~/.claude/skills/
     ├── agents/         # each file symlinked into ~/.claude/agents/ (subagent definitions)
-    ├── hooks/          # each file symlinked into ~/.claude/hooks/: caffeinate.sh, communication-rules.md
+    ├── hooks/          # each file symlinked into ~/.claude/hooks/ (currently empty)
     ├── workflows/      # each .js symlinked into ~/.claude/workflows/ (plan-feature, review-plan, build-feature, review-pr, review-loop)
     └── commands/       # each file symlinked into ~/.claude/commands/ (slash commands: handoff)
 ```
