@@ -51,12 +51,6 @@ Two only, and not on every line:
 - When you spot something worth keeping, say so and suggest where it belongs, then let me route it.
 - Reading memories already recalled into context is fine; creating new ones is not.
 
-# Subagent models
+# Subagents
 
-- **DO NOT USE FABLE SUBAGENTS UNLESS I EXPLICITLY ASK.** Subagents inherit the session model (Fable) by default, so always pass an explicit `model` on every Agent/Workflow agent call: `haiku` for mechanical or lookup work, `sonnet` for routine coding and searching, `opus` for complex reasoning, review, or planning.
-- Never pass `model: "fable"` and never omit `model` (omitting inherits Fable).
-- Exception: `subagent_type: "fork"` always inherits Fable and ignores overrides, so don't use forks unless I ask.
-- I don't want the session model doing every operation. Delegate the mechanical, search, and routine coding work to subagents with an explicit `model`.
-- **Git and `gh` operations always go to a `haiku` subagent, never inline, even when it is a single command** (`git commit`, `git push`, worktree and branch housekeeping, `gh pr create`/`edit`). The point is to keep tool output out of the session model's context, which is re-read on every later turn. Write the commit message or PR text inline first, then hand it to the subagent verbatim.
-- **Prose is Fable-only.** Writing or rewriting documentation, PR text, tickets, or any other prose is done inline by the main agent, never delegated to a subagent of any model.
-- When the two rules above collide — a one-file edit that is also prose — prose wins: if what I'm writing or rewriting is text a person reads (a `.md` file, a code comment, a ticket, a commit message), write it inline, even when the operation looks mechanical. Delegation is for code changes, searches, and running git, not for writing text.
+- Do not spawn subagents unless I ask. When I do, pass an explicit `model` (never Fable).
