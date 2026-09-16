@@ -3,7 +3,7 @@ export const meta = {
   description:
     'Review a submitted PR that already has human comments: sonnet reviews the diff and treats unresolved human review feedback as blocking, sonnet fixes the blocking findings and pushes to the PR branch, sonnet re-reviews — bounded to 2 rounds. Delegates the loop to the shared review-loop workflow.',
   whenToUse:
-    'After a PR is opened and picked up review comments. Pass args: { prNumber: number, rounds?: number }. Reviews the PR diff plus the existing human comments, then commits and pushes fixes to the PR branch. Returns the final findings.',
+    'After a PR is opened and picked up review comments. Pass args: { prNumber: number, rounds?: number, focus?: string }. focus is optional free text steering what the reviewer weights first. Reviews the PR diff plus the existing human comments, then commits and pushes fixes to the PR branch. Returns the final findings.',
   phases: [
     {
       title: 'Preflight',
@@ -22,9 +22,15 @@ export const meta = {
 
 const a = typeof args === 'string' ? JSON.parse(args) : args;
 if (!a || !a.prNumber) {
-  throw new Error('review-pr requires args: { prNumber: number, rounds?: number }');
+  throw new Error('review-pr requires args: { prNumber: number, rounds?: number, focus?: string }');
 }
-const { prNumber, rounds = 2 } = a;
+const { prNumber, rounds = 2, focus } = a;
+const FOCUS_RULES = focus
+  ? `
+The person asking for this review wants particular attention on: ${focus}
+Everything below still applies; this only changes what you weight first.
+`
+  : '';
 
 const GUIDELINES_DIR = '/tmp/pipelabs-docs/guidelines';
 const GUIDELINES_REFRESH = `git -C /tmp/pipelabs-docs pull --quiet 2>/dev/null || git clone --quiet --depth 1 git@github.com:pipelabs/docs.git /tmp/pipelabs-docs`;
@@ -117,7 +123,7 @@ const reviewPreamble = `You are reviewing submitted PR #${prNumber}, which is al
 Gather the full picture before classifying:
 - The diff: \`gh pr diff ${prNumber}\`. Read surrounding source where the diff alone is ambiguous (\`gh pr checkout ${prNumber}\` if you need the files locally, but do not modify anything).
 - The human feedback: \`gh pr view ${prNumber} --comments\` for the conversation, and \`gh api repos/{owner}/{repo}/pulls/${prNumber}/comments\` for inline review comments. Determine which comments are still unresolved / requesting changes.
-${reviewTestingDimension}
+${reviewTestingDimension}${FOCUS_RULES}
 Classify each finding:
 - blocking: unresolved human review comments that request a change, correctness bugs, broken or missing tests for new behaviour, tests that violate the testing standard, security problems, AGENTS.md violations that hooks/CI will not catch. When a finding comes from a human comment, quote the ask in the summary and cite the file/line it refers to.
 - minor: real but non-blocking improvements. Report them; they are surfaced to the human, not fixed here.

@@ -3,7 +3,7 @@ export const meta = {
   description:
     'Implement an agreed feature plan: sonnet builds on a worktree branch, opus reviews the diff, a PR opens once clean, haiku watches CI, with bounded fix loops at each gate',
   whenToUse:
-    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string }. size="small" is for a plan of a few files: sonnet reviews regardless of diff size, one fix round per gate, no comment polish. In every size the test-standard audit runs only when the diff touches a test file, and comment polish only when the diff adds a comment. prNumber points at an existing PR to push to and mark ready instead of creating one; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. testingStandard is the verbatim text of the Pipelabs testing guidelines — read /tmp/pipelabs-docs/guidelines/testing/README.md, writing-tests.md and test-data.md (plus database.md or frontend.md when the work touches them) and pass their concatenated contents whenever the work adds or changes tests, because a workflow script cannot read files itself and an agent handed a path may decide it already knows the rules. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
+    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string, base?: string, worktree?: string }. size="small" is for a plan of a few files: sonnet reviews regardless of diff size, one fix round per gate, no comment polish. In every size the test-standard audit runs only when the diff touches a test file, and comment polish only when the diff adds a comment. prNumber points at an existing PR to push to and mark ready instead of creating one; base is the branch the PR targets and the diff/rebase reference (default main) — pass it for a stacked PR; worktree overrides the checkout path (default .worktrees/<branch>) — pass an absolute path when the session already runs inside the worktree; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. testingStandard is the verbatim text of the Pipelabs testing guidelines — read /tmp/pipelabs-docs/guidelines/testing/README.md, writing-tests.md and test-data.md (plus database.md or frontend.md when the work touches them) and pass their concatenated contents whenever the work adds or changes tests, because a workflow script cannot read files itself and an agent handed a path may decide it already knows the rules. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
   phases: [
     {
       title: 'Preflight',
@@ -35,7 +35,7 @@ export const meta = {
     {
       title: 'Open PR',
       detail:
-        'sonnet (medium effort) rebases onto main, pushes, opens (or readies) the PR',
+        'sonnet (medium effort) rebases onto the base branch, pushes, opens (or readies) the PR',
       model: 'sonnet',
     },
     {
@@ -55,13 +55,14 @@ const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args;
 
 if (!parsedArgs || !parsedArgs.plan || !parsedArgs.branch) {
   throw new Error(
-    'build-feature requires args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string }',
+    'build-feature requires args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string, base?: string, worktree?: string }',
   );
 }
 
 const { plan, branch, size, issue, prNumber, verifyCommands, testingStandard } =
   parsedArgs;
-const worktree = `.worktrees/${branch}`;
+const base = parsedArgs.base || 'main';
+const worktree = parsedArgs.worktree || `.worktrees/${branch}`;
 const SMALL = size === 'small';
 const MAX_FIX_ROUNDS = SMALL ? 1 : 2;
 
@@ -156,7 +157,7 @@ ${STANDARD_TEXT ? `\n<testing-standard>\n${STANDARD_TEXT}\n</testing-standard>\n
 const REPO_RULES = `
 Ground rules for working in this repo:
 - Read AGENTS.md at the repo root before writing any code; its conventions (module order, function-name prefixes, testing rules, one-export-per-file, no non-null assertions, no type casts) are binding.
-- Work ONLY inside the worktree at ${worktree}. Never commit on main.
+- Work ONLY inside the worktree at ${worktree}. Never commit on main or on ${base}.
 - The worktree is a separate checkout: run \`pnpm install\` inside it first before running anything.
 - Node is pinned via Volta (24.x). Run all commands through the repo's toolchain; do not switch Node versions.
 - Git hooks are lefthook — read lefthook.yml at the repo root for what each hook gates (pre-commit: lint/format/secrets on staged; pre-push: lint, format:check, typecheck, type-aware lint). NEVER bypass hooks with --no-verify or by editing hook files. If a hook fails, fix the cause and re-commit.
@@ -214,7 +215,7 @@ const PR_SCHEMA = {
     resolvedConflicts: {
       type: 'boolean',
       description:
-        'True when the rebase onto origin/main hit conflicts that were resolved by hand',
+        'True when the rebase onto the base branch hit conflicts that were resolved by hand',
     },
   },
 };
@@ -275,7 +276,7 @@ const verifyGate =
 const impl = await agent(
   `You are implementing a feature that has already been planned and agreed. Follow the plan; do not redesign it. If the plan is wrong in a way you cannot resolve locally, stop and return status=blocked with the reason rather than improvising a different design.
 ${REPO_RULES_WITH_TESTING}
-Setup: from the repo root, create the worktree if it does not exist (\`git worktree add ${worktree} -b ${branch}\`; if the branch or worktree already exists, reuse it), then \`pnpm install\` inside it.
+Setup: from the repo root, create the worktree if it does not exist (\`git worktree add ${worktree} -b ${branch} ${base}\`; if the branch or worktree already exists, reuse it), then \`pnpm install\` inside it.
 
 The plan:
 
@@ -314,10 +315,10 @@ log(`Implemented: ${impl.summary}`);
 const diffStats = await agent(
   `Run these four commands and report the numbers; do nothing else.
 
-1. \`git -C ${worktree} diff --shortstat main...HEAD\` → linesChanged is insertions+deletions from the summary line (0 if a number is absent).
-2. \`git -C ${worktree} diff --name-only main...HEAD\` → filesChanged is the count of names.
-3. \`git -C ${worktree} diff --name-only main...HEAD | grep -cE '\\.(test|spec)\\.[cm]?[jt]sx?$'\` → testFilesChanged (grep exits 1 with output 0 when nothing matches; report 0).
-4. \`git -C ${worktree} diff main...HEAD -- . ':(exclude)*.md' | grep -cE '^\\+\\s*(//|/\\*|\\*\\s|#)|^\\+.*\\s//\\s'\` → addedComments (same grep rule: 0 when nothing matches).`,
+1. \`git -C ${worktree} diff --shortstat ${base}...HEAD\` → linesChanged is insertions+deletions from the summary line (0 if a number is absent).
+2. \`git -C ${worktree} diff --name-only ${base}...HEAD\` → filesChanged is the count of names.
+3. \`git -C ${worktree} diff --name-only ${base}...HEAD | grep -cE '\\.(test|spec)\\.[cm]?[jt]sx?$'\` → testFilesChanged (grep exits 1 with output 0 when nothing matches; report 0).
+4. \`git -C ${worktree} diff ${base}...HEAD -- . ':(exclude)*.md' | grep -cE '^\\+\\s*(//|/\\*|\\*\\s|#)|^\\+.*\\s//\\s'\` → addedComments (same grep rule: 0 when nothing matches).`,
   {
     label: 'diff-stats',
     model: 'haiku',
@@ -358,7 +359,7 @@ Whether the new behaviour is tested at all, and whether those tests would actual
 
 const reviewPreamble = `You are reviewing an unpushed feature branch before it becomes a PR. Repo root is the current directory; the branch lives in the worktree at ${worktree}. Read AGENTS.md first — its conventions are binding and convention violations that tooling cannot catch are in scope.
 
-Review the full diff (\`git -C ${worktree} diff main...HEAD\`) and read surrounding source where the diff alone is ambiguous. The plan this branch implements:
+Review the full diff (\`git -C ${worktree} diff ${base}...HEAD\`) and read surrounding source where the diff alone is ambiguous. The plan this branch implements:
 
 ${plan}
 ${reviewTestingDimension}
@@ -431,7 +432,7 @@ if (STANDARD_AVAILABLE && touchesTests) {
   phase('Audit tests');
   const auditPreamble = `You are auditing the test files touched by an unpushed feature branch against the Pipelabs testing standard. That is the whole job: not correctness, not the plan, not repo conventions the standard is silent on. Another reviewer has already covered those and its findings are fixed.
 
-List the touched files with \`git -C ${worktree} diff --name-only main...HEAD\`, then read every test file among them in full from the worktree — the diff hunks alone hide structure. Read enough surrounding source to tell what each test is for. If the diff touches no test file, return no findings.
+List the touched files with \`git -C ${worktree} diff --name-only ${base}...HEAD\`, then read every test file among them in full from the worktree — the diff hunks alone hide structure. Read enough surrounding source to tell what each test is for. If the diff touches no test file, return no findings.
 
 ${
   STANDARD_TEXT
@@ -507,7 +508,7 @@ if (SMALL) {
 } else {
   phase('Polish comments');
   const polish = await agent(
-    `Audit every code comment ADDED by the feature branch in the worktree at ${worktree} (\`git -C ${worktree} diff main...HEAD\`) against the comment rules in AGENTS.md at the repo root. Machine-written comments tend to narrate the change ("added for X", "handles the case where…", "we chose Y because"), reference the task or reviewer, restate the next line, or hedge — a human reader coming to the file cold should never sense the comment was written during a change.
+    `Audit every code comment ADDED by the feature branch in the worktree at ${worktree} (\`git -C ${worktree} diff ${base}...HEAD\`) against the comment rules in AGENTS.md at the repo root. Machine-written comments tend to narrate the change ("added for X", "handles the case where…", "we chose Y because"), reference the task or reviewer, restate the next line, or hedge — a human reader coming to the file cold should never sense the comment was written during a change.
 
 For each added comment, decide: delete (the default — most comments are noise), rewrite (only when the next reader genuinely needs intent the code cannot show), or keep (already reads cold and factual). Do not touch pre-existing comments, code, tests, or docstrings that double as API documentation. Do not add new comments.
 ${REPO_RULES}
@@ -527,15 +528,15 @@ Commit the result (hooks must pass) with subject "style: rewrite comments to rea
 }
 
 phase('Open PR');
-const prBodySpec = `Write the PR body from the branch's actual final diff (\`git -C ${worktree} diff origin/main...HEAD\`) — do not paraphrase second-hand summaries — following the repo template (.github/pull_request_template.md): condensed description (lead ≤2 sentences, one-line bullets, ≤150 words, no hard line wrapping), decisions a reviewer can't read off the diff, no narrative about review rounds or fix history${issue ? `, starting with \`Closes #${issue}\`` : ''}. For orientation only, the implementer summarized the work as: ${impl.summary}`;
+const prBodySpec = `Write the PR body from the branch's actual final diff (\`git -C ${worktree} diff origin/${base}...HEAD\`) — do not paraphrase second-hand summaries — following the repo template (.github/pull_request_template.md): condensed description (lead ≤2 sentences, one-line bullets, ≤150 words, no hard line wrapping), decisions a reviewer can't read off the diff, no narrative about review rounds or fix history${issue ? `, starting with \`Closes #${issue}\`` : ''}. For orientation only, the implementer summarized the work as: ${impl.summary}`;
 const prAction = prNumber
   ? `Update the existing PR #${prNumber}: refresh its body with \`gh pr edit ${prNumber}\` and mark it ready for review with \`gh pr ready ${prNumber}\`. Return its URL and number.`
-  : `Open the PR with \`gh pr create --head ${branch}\`, title in Conventional Commits form with a scope from the AGENTS.md scope list. Return the new PR's URL and number.`;
+  : `Open the PR with \`gh pr create --head ${branch} --base ${base}\`, title in Conventional Commits form with a scope from the AGENTS.md scope list. Return the new PR's URL and number.`;
 const prTemplateActions = `The repo's PR template carries instructions inside its HTML comments, and some of them are actions on the PR object — labels, reviewers, draft state — not text for the body. Read every comment in the template and satisfy all of them, whatever they turn out to be in this repo. Before returning, verify with \`gh pr view <number> --json labels,body\` that the PR actually carries what the template asked for.`;
 const pr = await agent(
-  `Publish the reviewed feature branch in the worktree at ${worktree} as a PR against main.
+  `Publish the reviewed feature branch in the worktree at ${worktree} as a PR against ${base}.
 
-1. Bring the branch up to date: \`git -C ${worktree} fetch origin\` then \`git -C ${worktree} rebase origin/main\`. If the rebase hits conflicts, resolve them faithfully to both sides' intent (rerun \`pnpm install\` in the worktree if dependency manifests changed) and return resolvedConflicts=true; if it was clean or a no-op, return resolvedConflicts=false.
+1. Bring the branch up to date: \`git -C ${worktree} fetch origin\` then \`git -C ${worktree} rebase origin/${base}\`. If the rebase hits conflicts, resolve them faithfully to both sides' intent (rerun \`pnpm install\` in the worktree if dependency manifests changed) and return resolvedConflicts=true; if it was clean or a no-op, return resolvedConflicts=false.
 2. Push with \`git -C ${worktree} push -u origin ${branch}\`, adding \`--force-with-lease\` only if the rebase rewrote commits that were already pushed.
 3. ${prAction}
 
@@ -618,7 +619,7 @@ When all checks have completed: if everything passed, return conclusion=green wi
 ${REPO_RULES}
 ${JSON.stringify(ci.failures, null, 2)}
 
-If a failure's check is "merge-conflict", the branch has fallen behind main: \`git -C ${worktree} fetch origin\`, rebase onto origin/main, resolve conflicts faithfully to both sides' intent (rerun \`pnpm install\` in the worktree if dependency manifests changed), push with \`--force-with-lease\` — that flag is allowed for this case ONLY — and return resolvedConflicts=true if you resolved conflicts by hand.
+If a failure's check is "merge-conflict", the branch has fallen behind ${base}: \`git -C ${worktree} fetch origin\`, rebase onto origin/${base}, resolve conflicts faithfully to both sides' intent (rerun \`pnpm install\` in the worktree if dependency manifests changed), push with \`--force-with-lease\` — that flag is allowed for this case ONLY — and return resolvedConflicts=true if you resolved conflicts by hand.
 
 For every other failure, commit the fixes (hooks must pass) and push to the existing branch without force.`,
     {
