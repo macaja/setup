@@ -41,10 +41,11 @@ sidebar.
   `<repoId>::<absoluteWorktreePath>`. Both halves are needed later; a bare repo id is not a
   worktree id.
 - Several plausible matches: ask which one, listing display name and path for each.
-- No match: ask whether to create it. If yes, run
-  `<orca> worktree create --name <name> --no-parent --json` and take `worktree.id` and
-  `worktree.path` from the result. Use `--no-parent` unless the user asked for work stacked
-  on the current branch.
+- No match: ask whether to create it. If yes, invoke the `worktree-creation` skill and
+  create it with `command create-wt <type>/<name>` from the main checkout's root — never
+  `<orca> worktree create`, which names the branch after the GitHub username. The script
+  prints the new path; then re-run `<orca> worktree list --json` and take the `id` of the
+  entry whose `path` matches it.
 
 Never hand off to the worktree the conversation is running in. If the resolved target is
 the current one, stop and say so.
