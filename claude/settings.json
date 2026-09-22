@@ -183,5 +183,14 @@
   "autoMemoryEnabled": false,
   "skipWorkflowUsageWarning": true,
   "theme": "dark",
-  "agentPushNotifEnabled": true
+  "switchModelsOnFlag": true,
+  "agentPushNotifEnabled": true,
+  "autoMode": {
+    "soft_deny": [
+      "$defaults",
+      "Bash(aws-vault exec pd4castr-prod:*)",
+      "Bash(aws-vault exec pd4castr-staging:*)"
+    ]
+  },
+  "promptSuggestionEnabled": false
 }
