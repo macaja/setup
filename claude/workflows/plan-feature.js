@@ -3,8 +3,14 @@ export const meta = {
   description:
     'Plan a feature end to end: a Fable planner reads the tech design and the codebase and writes an implementation plan named after the feature branch, then the review-plan workflow reviews it (design alignment + code reality) and fixes blocking findings. The plan stays a local file. Returns a digest — never starts executing the plan.',
   whenToUse:
-    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string }. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes). The finished plan stays a local file. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do NOT ask to execute the plan; the user will say when.',
+    'Run when a feature needs a fresh implementation plan. Pass args: { feature: string, branch: string, designDocs?: string[], planDir?: string, base?: string }. Before planning, the checkout this session runs in fetches origin/<base> (default main) and merges it, so the planner reads current code; the run stops if that checkout has uncommitted changes or the merge conflicts. feature is the full task context (deliverable, ticket/epic refs, agreed decisions); branch is the feat branch name — the plan file is named after it (slashes become dashes). The finished plan stays a local file. If a plan already exists, run review-plan instead. After it returns, report the digest to the user and WAIT for orders — do NOT ask to execute the plan; the user will say when.',
   phases: [
+    {
+      title: 'Sync',
+      detail:
+        'haiku (low effort) fetches the base branch from origin and merges it into the checkout the planner reads',
+      model: 'haiku',
+    },
     {
       title: 'Plan',
       detail:
@@ -17,7 +23,7 @@ export const meta = {
 const a = typeof args === 'string' ? JSON.parse(args) : args;
 if (!a || !a.feature || !a.branch) {
   throw new Error(
-    'plan-feature requires args: { feature: string, branch: string, designDocs?: string[], planDir?: string }',
+    'plan-feature requires args: { feature: string, branch: string, designDocs?: string[], planDir?: string, base?: string }',
   );
 }
 // Workflow scripts run sandboxed without Node APIs, so process may not exist at
@@ -31,7 +37,11 @@ const {
   branch,
   designDocs = [],
   planDir = `${HOME}/.claude/plans`,
+  base = 'main',
 } = a;
+// The local base branch can lag origin, so the planner reads a checkout that
+// already contains the remote-tracking ref.
+const baseRef = `origin/${base}`;
 const slug = branch.replace(/\//g, '-');
 const planPath = `${planDir}/${slug}.md`;
 
@@ -58,6 +68,49 @@ const designDocsBlock =
   designDocs.length > 0
     ? `Start from these design docs (paths relative to the repo root):\n${designDocs.map((d) => `- ${d}`).join('\n')}\nFollow their references to related docs (ADRs, sibling design files) as needed.`
     : 'No design doc paths were provided: locate the relevant docs under docs/projects/ (and any ADRs they cite) from the feature context below.';
+
+phase('Sync');
+
+const SYNC_SCHEMA = {
+  type: 'object',
+  required: ['status'],
+  properties: {
+    status: { enum: ['up-to-date', 'merged', 'conflict', 'dirty', 'failed'] },
+    reason: {
+      type: 'string',
+      description:
+        'For conflict, dirty or failed: what happened, with the conflicting or uncommitted paths',
+    },
+  },
+};
+
+const sync = await agent(
+  `Bring the current checkout up to date with ${baseRef} before planning starts. Run each step in the current working directory and stop at the first one that fails.
+
+1. \`git fetch origin ${base}\`. If it fails, return status=failed with the error.
+2. \`git status --porcelain\`. If it prints anything, return status=dirty with the paths and change nothing.
+3. \`git merge-base --is-ancestor ${baseRef} HEAD\` exits 0 when the checkout already contains ${baseRef}: return status=up-to-date.
+4. \`git merge --no-edit ${baseRef}\`. If it stops on conflicts, run \`git merge --abort\` and return status=conflict with the conflicting paths. Otherwise return status=merged.
+
+Never rebase, reset, push, switch branches, or delete anything. Do not resolve conflicts yourself.`,
+  {
+    label: 'sync-base',
+    model: 'haiku',
+    effort: 'low',
+    schema: SYNC_SCHEMA,
+    phase: 'Sync',
+  },
+);
+
+if (!sync || !['up-to-date', 'merged'].includes(sync.status)) {
+  return {
+    status: 'sync-blocked',
+    reason: sync
+      ? `could not bring the checkout up to date with ${baseRef} (${sync.status}): ${sync.reason || 'no detail'}`
+      : 'sync agent died',
+  };
+}
+log(`Checkout ${sync.status} against ${baseRef}`);
 
 phase('Plan');
 
