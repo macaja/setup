@@ -1,14 +1,14 @@
 export const meta = {
   name: 'build-feature',
   description:
-    'Implement an agreed feature plan: sonnet builds on a worktree branch, opus reviews the diff, a PR opens once clean, haiku watches CI, with bounded fix loops at each gate',
+    'Implement an agreed feature plan: sonnet builds on a worktree branch, opus reviews the diff, a PR opens once clean, the CodeRabbit review gets triaged and fixed, haiku watches CI, with bounded fix loops at each gate',
   whenToUse:
-    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string, base?: string, worktree?: string }. size="small" is for a plan of a few files: sonnet reviews regardless of diff size, one fix round per gate, no comment polish. In every size the test-standard audit runs only when the diff touches a test file, and comment polish only when the diff adds a comment. prNumber points at an existing PR to push to and mark ready instead of creating one; base is the branch the PR targets and the diff/rebase reference (default main) — pass it for a stacked PR; worktree overrides the checkout path (default .worktrees/<branch>) — pass an absolute path when the session already runs inside the worktree; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. testingStandard is the verbatim text of the Pipelabs testing guidelines — read /tmp/pipelabs-docs/guidelines/testing/README.md, writing-tests.md and test-data.md (plus database.md or frontend.md when the work touches them) and pass their concatenated contents whenever the work adds or changes tests, because a workflow script cannot read files itself and an agent handed a path may decide it already knows the rules. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
+    'After a feature plan has been agreed interactively. Pass args: { plan: string, branch: string, size?: "small" | "normal", issue?: number, prNumber?: number, verifyCommands?: string[], testingStandard?: string, base?: string, worktree?: string }. size="small" is for a plan of a few files: sonnet reviews regardless of diff size, one fix round per gate. After the PR opens, the run waits for the one CodeRabbit review (up to about 30 minutes), opus triages its comments, and sonnet fixes the real ones in a single push; a PR CodeRabbit never reviews moves straight on to CI. prNumber points at an existing PR to push to and mark ready instead of creating one; base is the branch the PR targets and the diff/rebase reference (default main) — pass it for a stacked PR; worktree overrides the checkout path (default .worktrees/<branch>) — pass an absolute path when the session already runs inside the worktree; before implementing, the preflight fetches origin/<base> and merges it into the branch (creating the worktree from origin/<base> when missing), and the run stops if the worktree has uncommitted changes or the merge conflicts; verifyCommands are extra whole-repo gates the implementer must pass for cross-cutting work. testingStandard is the verbatim text of the Pipelabs testing guidelines — read /tmp/pipelabs-docs/guidelines/testing/README.md, writing-tests.md and test-data.md (plus database.md or frontend.md when the work touches them) and pass their concatenated contents whenever the work adds or changes tests, because a workflow script cannot read files itself and an agent handed a path may decide it already knows the rules. A run cannot pause for conversation — bake every decision it will need into the plan, or split multi-decision phases into separate runs. Returns the PR URL on success or a failure report with the branch left in place for inspection.',
   phases: [
     {
       title: 'Preflight',
       detail:
-        'haiku (low effort) refreshes the Pipelabs guidelines clone that later stages read',
+        'haiku (low effort) refreshes the Pipelabs guidelines clone that later stages read, fetches the base branch from origin and merges it into the worktree branch (creating the worktree from origin when missing)',
       model: 'haiku',
     },
     {
@@ -22,21 +22,16 @@ export const meta = {
         'sonnet reviews small diffs, opus reviews large ones (medium effort); sonnet (medium effort) fixes blocking findings (max 2 rounds, 1 when size=small)',
     },
     {
-      title: 'Audit tests',
-      detail:
-        'only when the diff touches a test file: reviewer tier audits those files against the testing standard alone, every deviation blocking; sonnet (medium effort) fixes them (max 1 round)',
-    },
-    {
-      title: 'Polish comments',
-      detail:
-        'only when the diff adds a comment and size is not small: fable (low effort) audits and rewrites code comments in the final diff',
-      model: 'fable',
-    },
-    {
       title: 'Open PR',
       detail:
         'sonnet (medium effort) rebases onto the base branch, pushes, opens (or readies) the PR',
       model: 'sonnet',
+    },
+    {
+      title: 'CodeRabbit',
+      detail:
+        'haiku (low effort) waits for the one review; opus (medium effort) triages findings; sonnet (medium effort) fixes real ones in one push',
+      model: 'haiku',
     },
     {
       title: 'Watch CI',
@@ -47,7 +42,6 @@ export const meta = {
   ],
 };
 
-const MAX_AUDIT_FIX_ROUNDS = 1;
 const OPUS_REVIEW_LINE_THRESHOLD = 200;
 const OPUS_REVIEW_FILE_THRESHOLD = 6;
 
@@ -62,6 +56,9 @@ if (!parsedArgs || !parsedArgs.plan || !parsedArgs.branch) {
 const { plan, branch, size, issue, prNumber, verifyCommands, testingStandard } =
   parsedArgs;
 const base = parsedArgs.base || 'main';
+// The local base branch can lag origin by any number of merges, so every diff
+// and branch point uses the remote-tracking ref the preflight just fetched.
+const baseRef = `origin/${base}`;
 const worktree = parsedArgs.worktree || `.worktrees/${branch}`;
 const SMALL = size === 'small';
 const MAX_FIX_ROUNDS = SMALL ? 1 : 2;
@@ -114,6 +111,55 @@ if (!guidelines || !guidelines.available) {
   );
 }
 
+const SYNC_SCHEMA = {
+  type: 'object',
+  required: ['status'],
+  properties: {
+    status: {
+      enum: ['created', 'up-to-date', 'merged', 'conflict', 'dirty', 'failed'],
+    },
+    reason: {
+      type: 'string',
+      description:
+        'For conflict, dirty or failed: what happened, with the conflicting or uncommitted paths',
+    },
+  },
+};
+
+const sync = await agent(
+  `Bring the feature branch's worktree up to date with ${baseRef} before any work starts. Run each step from the repo root and stop at the first one that fails.
+
+1. \`git fetch origin ${base}\`. If it fails, return status=failed with the error.
+2. If ${worktree} is not an existing worktree:
+   - when the branch ${branch} does not exist locally: \`git worktree add --no-track -b ${branch} ${worktree} ${baseRef}\`, then return status=created;
+   - when it exists: \`git worktree add ${worktree} ${branch}\` and continue with step 3.
+3. \`git -C ${worktree} status --porcelain\`. If it prints anything, return status=dirty with the paths and change nothing.
+4. \`git -C ${worktree} merge-base --is-ancestor ${baseRef} HEAD\` exits 0 when the branch already contains ${baseRef}: return status=up-to-date.
+5. \`git -C ${worktree} merge --no-edit ${baseRef}\`. If it stops on conflicts, run \`git -C ${worktree} merge --abort\` and return status=conflict with the conflicting paths. Otherwise return status=merged.
+
+Never rebase, reset, push, or delete anything. Do not resolve conflicts yourself.`,
+  {
+    label: 'sync-base',
+    model: 'haiku',
+    effort: 'low',
+    schema: SYNC_SCHEMA,
+    phase: 'Preflight',
+  },
+);
+
+if (!sync || !['created', 'up-to-date', 'merged'].includes(sync.status)) {
+  return {
+    status: 'failed',
+    stage: 'preflight',
+    branch,
+    worktree,
+    reason: sync
+      ? `could not bring ${branch} up to date with ${baseRef} (${sync.status}): ${sync.reason || 'no detail'}`
+      : 'sync agent died',
+  };
+}
+log(`Worktree ${sync.status} against ${baseRef}`);
+
 const STANDARD_TEXT =
   typeof testingStandard === 'string' && testingStandard.trim()
     ? testingStandard.trim()
@@ -152,7 +198,7 @@ ${STANDARD_TEXT ? `\n<testing-standard>\n${STANDARD_TEXT}\n</testing-standard>\n
  * each mutating prompt so fixer agents in later phases inherit the same
  * constraints as the implementer. The testing standard is appended only for
  * the agents that write or restructure tests; it is the largest block in any
- * prompt here and the comment polisher and CI fixer never need it.
+ * prompt here and the CI fixer never needs it.
  */
 const REPO_RULES = `
 Ground rules for working in this repo:
@@ -162,8 +208,10 @@ Ground rules for working in this repo:
 - Node is pinned via Volta (24.x). Run all commands through the repo's toolchain; do not switch Node versions.
 - Git hooks are lefthook — read lefthook.yml at the repo root for what each hook gates (pre-commit: lint/format/secrets on staged; pre-push: lint, format:check, typecheck, type-aware lint). NEVER bypass hooks with --no-verify or by editing hook files. If a hook fails, fix the cause and re-commit.
 - Use relative paths from the repo root in tool calls.
+- Every turn re-sends your whole context, so the number of turns is the dominant cost of this run. Batch independent tool calls into one turn: issue the reads, greps and searches you already know you need as parallel tool calls, and read a file once, in full, with the Read tool instead of slicing it across several sed/head/grep calls.
 - If your changed tests touch Postgres, start the test database first from the repo root: \`docker compose -f docker-compose.test.yml up -d\` (test Postgres listens on host port 5999).
-- Run tests with \`pnpm test <files>\` from the repo root (targeted). For broad runs pass \`--maxWorkers=4\`. Never run \`pnpm vitest\` directly.
+- Run tests with \`pnpm test <files>\` from the repo root, naming only the test files your change affects, every time you run them while fixing. Run a broad suite (a whole workspace, with \`--maxWorkers=4\`) only as a final check before your last commit, or when a verify command you were given requires it, never while iterating. Never run \`pnpm vitest\` directly.
+- If the same tests still fail after three fix attempts in a row, stop: return status=blocked with the failing test names, the decisive error lines, and what you tried. Do not keep iterating.
 - Use Conventional Commits with a scope from the AGENTS.md scope list (one per workspace, e.g. \`feat(app): …\`, \`fix(api): …\`); omit the scope only when a change legitimately spans multiple workspaces.${issue ? ` Reference issue #${issue} in the PR body (Closes #${issue}), not in the commit scope.` : ''}
 `;
 
@@ -222,26 +270,70 @@ const PR_SCHEMA = {
 
 const DIFF_STATS_SCHEMA = {
   type: 'object',
-  required: [
-    'filesChanged',
-    'linesChanged',
-    'testFilesChanged',
-    'addedComments',
-  ],
+  required: ['filesChanged', 'linesChanged'],
   properties: {
     filesChanged: { type: 'integer' },
     linesChanged: {
       type: 'integer',
       description: 'insertions + deletions from git diff --shortstat',
     },
-    testFilesChanged: {
-      type: 'integer',
-      description: 'Changed files whose name matches *.test.* or *.spec.*',
+  },
+};
+
+const CODERABBIT_WAIT_SCHEMA = {
+  type: 'object',
+  required: ['status'],
+  properties: {
+    status: {
+      enum: ['reviewed', 'no-review'],
+      description:
+        'no-review when CodeRabbit skipped the PR, is not installed, or did not post within the wait',
     },
-    addedComments: {
-      type: 'integer',
-      description: 'Added lines that carry a code comment marker',
+    reason: { type: 'string', description: 'Only for no-review: why' },
+    reviewBody: {
+      type: 'string',
+      description:
+        "The review's own body, verbatim: CodeRabbit puts nitpicks and outside-the-diff comments there",
     },
+    comments: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['path', 'body'],
+        properties: {
+          path: { type: 'string' },
+          line: { type: 'integer' },
+          body: { type: 'string', description: 'The comment body, verbatim' },
+        },
+      },
+    },
+  },
+};
+
+const CODERABBIT_FINDING = {
+  type: 'object',
+  required: ['location', 'summary'],
+  properties: {
+    location: { type: 'string', description: 'file:line' },
+    summary: { type: 'string' },
+    fix: {
+      type: 'string',
+      description: 'Only for real findings: what to change',
+    },
+    reason: {
+      type: 'string',
+      description:
+        'Only for dismissed findings: what in the code or the plan makes it wrong or out of scope',
+    },
+  },
+};
+
+const CODERABBIT_TRIAGE_SCHEMA = {
+  type: 'object',
+  required: ['real', 'dismissed'],
+  properties: {
+    real: { type: 'array', items: CODERABBIT_FINDING },
+    dismissed: { type: 'array', items: CODERABBIT_FINDING },
   },
 };
 
@@ -276,11 +368,13 @@ const verifyGate =
 const impl = await agent(
   `You are implementing a feature that has already been planned and agreed. Follow the plan; do not redesign it. If the plan is wrong in a way you cannot resolve locally, stop and return status=blocked with the reason rather than improvising a different design.
 ${REPO_RULES_WITH_TESTING}
-Setup: from the repo root, create the worktree if it does not exist (\`git worktree add ${worktree} -b ${branch} ${base}\`; if the branch or worktree already exists, reuse it), then \`pnpm install\` inside it.
+Setup: the worktree at ${worktree} already exists and already contains ${baseRef}. Do not recreate it, rebase it, or merge into it. Run \`pnpm install\` inside it.
 
 The plan:
 
 ${plan}
+
+If the plan above is only a pointer to a file, read that file once, in full, before you start, and work from that reading instead of opening it again.
 
 Implement the plan completely, including tests for new behaviour written to the testing standard in the ground rules above. Commit in logical increments. Pre-commit only auto-fixes lint/format on staged files — it proves nothing about types or behaviour. Before your final commit, run \`pnpm typecheck\` and \`pnpm test <the files your change affects>\` from the repo root and get both green: pre-push and CI gate them anyway, but later stages expect a branch that already passes.
 ${verifyGate}
@@ -313,12 +407,10 @@ if (impl.status === 'blocked') {
 log(`Implemented: ${impl.summary}`);
 
 const diffStats = await agent(
-  `Run these four commands and report the numbers; do nothing else.
+  `Run these two commands and report the numbers; do nothing else.
 
-1. \`git -C ${worktree} diff --shortstat ${base}...HEAD\` → linesChanged is insertions+deletions from the summary line (0 if a number is absent).
-2. \`git -C ${worktree} diff --name-only ${base}...HEAD\` → filesChanged is the count of names.
-3. \`git -C ${worktree} diff --name-only ${base}...HEAD | grep -cE '\\.(test|spec)\\.[cm]?[jt]sx?$'\` → testFilesChanged (grep exits 1 with output 0 when nothing matches; report 0).
-4. \`git -C ${worktree} diff ${base}...HEAD -- . ':(exclude)*.md' | grep -cE '^\\+\\s*(//|/\\*|\\*\\s|#)|^\\+.*\\s//\\s'\` → addedComments (same grep rule: 0 when nothing matches).`,
+1. \`git -C ${worktree} diff --shortstat ${baseRef}...HEAD\` → linesChanged is insertions+deletions from the summary line (0 if a number is absent).
+2. \`git -C ${worktree} diff --name-only ${baseRef}...HEAD\` → filesChanged is the count of names.`,
   {
     label: 'diff-stats',
     model: 'haiku',
@@ -333,11 +425,8 @@ const reviewerModel =
     diffStats.filesChanged > OPUS_REVIEW_FILE_THRESHOLD)
     ? 'opus'
     : 'sonnet';
-// Stats unavailable means the gates cannot prove the stage is unnecessary, so it runs.
-const touchesTests = !diffStats || diffStats.testFilesChanged > 0;
-const addsComments = !diffStats || diffStats.addedComments > 0;
 log(
-  `Diff: ${diffStats ? `${diffStats.filesChanged} files, ${diffStats.linesChanged} lines, ${diffStats.testFilesChanged} test files, ${diffStats.addedComments} added comment lines` : 'stats unavailable, running every gate'} — reviewer: ${reviewerModel}${SMALL ? ' (size=small)' : ''}`,
+  `Diff: ${diffStats ? `${diffStats.filesChanged} files, ${diffStats.linesChanged} lines` : 'stats unavailable'} — reviewer: ${reviewerModel}${SMALL ? ' (size=small)' : ''}`,
 );
 
 const STANDARD_AVAILABLE = Boolean(
@@ -346,25 +435,32 @@ const STANDARD_AVAILABLE = Boolean(
 
 phase('Review');
 /**
- * Structure of a test file belongs to the dedicated audit that follows, which
- * has no severity dial to turn down. Splitting it out keeps this reviewer from
- * weighing a standard violation against everything else it found and settling
- * on minor.
+ * With no separate test audit, the reviewer owns the testing standard too.
+ * A standard violation is blocking here, so it cannot be graded away as minor
+ * next to correctness findings.
  */
 const reviewTestingDimension = STANDARD_AVAILABLE
   ? `
-Whether the new behaviour is tested at all, and whether those tests would actually fail if the behaviour broke, is yours. How the test files are structured — flat \`test()\`, \`setupTest()\`, data construction, titles, where mocks sit — belongs to a separate audit that runs after you, so leave it alone and do not spend findings on it.
+The test code the branch adds or changes must follow the Pipelabs testing standard: flat \`test()\`, \`setupTest()\` building the environment and never the scenario, data built inline in each test, the standard's title form, mocks at the boundary. Every deviation in that code is blocking. Tests that predate the branch are out of scope, even when they break the standard. ${
+      STANDARD_TEXT
+        ? `The standard is reproduced below; judge against it, not against the tests already in the repo.
+
+<testing-standard>
+${STANDARD_TEXT}
+</testing-standard>`
+        : `Read ${GUIDELINES_DIR}/testing/README.md, writing-tests.md and test-data.md before judging test code, and judge against them, not against the tests already in the repo.`
+    }
 `
   : '';
 
 const reviewPreamble = `You are reviewing an unpushed feature branch before it becomes a PR. Repo root is the current directory; the branch lives in the worktree at ${worktree}. Read AGENTS.md first — its conventions are binding and convention violations that tooling cannot catch are in scope.
 
-Review the full diff (\`git -C ${worktree} diff ${base}...HEAD\`) and read surrounding source where the diff alone is ambiguous. The plan this branch implements:
+Review the full diff (\`git -C ${worktree} diff ${baseRef}...HEAD\`) and read surrounding source where the diff alone is ambiguous. The plan this branch implements:
 
 ${plan}
 ${reviewTestingDimension}
 Classify each finding:
-- blocking: correctness bugs, broken or missing tests for new behaviour, tests that pass whether or not the code works, deviations from the plan, security problems, AGENTS.md violations that hooks/CI will not catch.
+- blocking: correctness bugs, broken or missing tests for new behaviour, tests that pass whether or not the code works, testing-standard deviations in the branch's test code, deviations from the plan, security problems, AGENTS.md violations that hooks/CI will not catch.
 - minor: real but non-blocking improvements. Report them; they will be surfaced to the human reviewer, not fixed here.
 Do not modify any files. No praise, no restating the diff.`;
 
@@ -422,113 +518,8 @@ if (reviewResult.status === 'blocking-remaining')
 const minorFindings = reviewResult.minorFindings.slice();
 log(`Review clean (${minorFindings.length} minor finding(s) noted)`);
 
-/**
- * A single-dimension pass with no minor category. Severity is where the
- * general review leaks: a standard violation sitting next to correctness
- * findings reads as small and gets graded away, and it ships. Here there is
- * nothing to weigh it against and nothing to downgrade it to.
- */
-if (STANDARD_AVAILABLE && touchesTests) {
-  phase('Audit tests');
-  const auditPreamble = `You are auditing the test files touched by an unpushed feature branch against the Pipelabs testing standard. That is the whole job: not correctness, not the plan, not repo conventions the standard is silent on. Another reviewer has already covered those and its findings are fixed.
-
-List the touched files with \`git -C ${worktree} diff --name-only ${base}...HEAD\`, then read every test file among them in full from the worktree — the diff hunks alone hide structure. Read enough surrounding source to tell what each test is for. If the diff touches no test file, return no findings.
-
-${
-  STANDARD_TEXT
-    ? `The standard is reproduced below. Judge against this text, not against the tests already in the repo — existing files predate the standard and are not the benchmark.
-
-<testing-standard>
-${STANDARD_TEXT}
-</testing-standard>`
-    : `Read ${GUIDELINES_DIR}/testing/README.md, ${GUIDELINES_DIR}/testing/writing-tests.md and ${GUIDELINES_DIR}/testing/test-data.md in full before judging anything, plus the topic doc matching what is under test (boundary-mocking.md, database.md, frontend.md in the same directory). Judge against those files, not against the tests already in the repo — existing files predate the standard and are not the benchmark.`
-}
-
-Report every deviation as blocking. This audit has no minor category and you may not invent one. Do not weigh a violation against how small it looks, how few lines it spans, how consistent it is with a neighbouring file, or how much churn the fix costs — none of that changes whether the file matches the standard. Where the standard and this repo's AGENTS.md overlap, AGENTS.md wins on local helper names only; everything about structure, setup, data construction and naming comes from the standard.
-
-Two things get missed most, so state a verdict on each explicitly for every file you audit: whether the per-file setup function builds only the environment and never a scenario, and whether the file's test titles follow the standard's naming form and are consistent with each other.
-
-Do not modify any files. No praise, no restating the diff.`;
-
-  const auditFixPreamble = `A test-standard audit found violations in the test files on the feature branch in the worktree at ${worktree}. Fix exactly these — touch test files only, and do not weaken what any test asserts: a restructured test must still fail for the same reason it would have failed before you touched it.
-${REPO_RULES_WITH_TESTING}
-Re-run every affected test file with \`pnpm test <files>\` from the repo root and get it green before committing. Commit with subject "test: align tests with the testing standard" (hooks must pass). Do not push.
-
-The violations to fix:`;
-
-  const auditResult = await workflow('review-loop', {
-    reviewPreamble: auditPreamble,
-    fixPreamble: auditFixPreamble,
-    reviewerModel,
-    fixerModel: 'sonnet',
-    reviewerEffort: 'medium',
-    fixerEffort: 'medium',
-    rounds: MAX_AUDIT_FIX_ROUNDS,
-    phaseLabel: 'Audit tests',
-  });
-
-  if (auditResult.status === 'agent-died') {
-    log(
-      `Test-standard audit did not complete (${auditResult.reason}) — continuing with tests as written`,
-    );
-  } else if (auditResult.status === 'fix-blocked') {
-    return {
-      status: 'blocked',
-      stage: 'test-standard-fix',
-      branch,
-      worktree,
-      reason: auditResult.reason,
-      outstandingFindings: auditResult.blocking,
-      minorFindings,
-    };
-  } else if (auditResult.status === 'blocking-remaining') {
-    return {
-      status: 'test-standard-blocked',
-      branch,
-      worktree,
-      reason: `test-standard violations remain after ${MAX_AUDIT_FIX_ROUNDS} fix round${MAX_AUDIT_FIX_ROUNDS === 1 ? '' : 's'}`,
-      outstandingFindings: auditResult.blocking,
-      minorFindings,
-    };
-  } else {
-    log('Test-standard audit clean');
-  }
-} else if (!STANDARD_AVAILABLE) {
-  log(
-    'Testing standard unavailable — skipping the test-standard audit; test structure is unchecked on this run',
-  );
-} else {
-  log('Diff touches no test file — skipping the test-standard audit');
-}
-
-if (SMALL) {
-  log('size=small — skipping comment polish');
-} else if (!addsComments) {
-  log('Diff adds no comment — skipping comment polish');
-} else {
-  phase('Polish comments');
-  const polish = await agent(
-    `Audit every code comment ADDED by the feature branch in the worktree at ${worktree} (\`git -C ${worktree} diff ${base}...HEAD\`) against the comment rules in AGENTS.md at the repo root. Machine-written comments tend to narrate the change ("added for X", "handles the case where…", "we chose Y because"), reference the task or reviewer, restate the next line, or hedge — a human reader coming to the file cold should never sense the comment was written during a change.
-
-For each added comment, decide: delete (the default — most comments are noise), rewrite (only when the next reader genuinely needs intent the code cannot show), or keep (already reads cold and factual). Do not touch pre-existing comments, code, tests, or docstrings that double as API documentation. Do not add new comments.
-${REPO_RULES}
-Commit the result (hooks must pass) with subject "style: rewrite comments to read cold". If nothing needs changing, commit nothing. Do not push.`,
-    {
-      label: 'polish-comments',
-      model: 'fable',
-      effort: 'low',
-      schema: FIX_SCHEMA,
-    },
-  );
-  if (polish && polish.status === 'done') {
-    log(`Comments polished: ${polish.summary}`);
-  } else {
-    log('Comment polish skipped or blocked; continuing with comments as-is');
-  }
-}
-
 phase('Open PR');
-const prBodySpec = `Write the PR body from the branch's actual final diff (\`git -C ${worktree} diff origin/${base}...HEAD\`) — do not paraphrase second-hand summaries — following the repo template (.github/pull_request_template.md): condensed description (lead ≤2 sentences, one-line bullets, ≤150 words, no hard line wrapping), decisions a reviewer can't read off the diff, no narrative about review rounds or fix history${issue ? `, starting with \`Closes #${issue}\`` : ''}. For orientation only, the implementer summarized the work as: ${impl.summary}`;
+const prBodySpec = `Write the PR body from the branch's actual final diff (\`git -C ${worktree} diff ${baseRef}...HEAD\`) — do not paraphrase second-hand summaries — following the repo template (.github/pull_request_template.md): condensed description (lead ≤2 sentences, one-line bullets, ≤150 words, no hard line wrapping), decisions a reviewer can't read off the diff, no narrative about review rounds or fix history${issue ? `, starting with \`Closes #${issue}\`` : ''}. For orientation only, the implementer summarized the work as: ${impl.summary}`;
 const prAction = prNumber
   ? `Update the existing PR #${prNumber}: refresh its body with \`gh pr edit ${prNumber}\` and mark it ready for review with \`gh pr ready ${prNumber}\`. Return its URL and number.`
   : `Open the PR with \`gh pr create --head ${branch} --base ${base}\`, title in Conventional Commits form with a scope from the AGENTS.md scope list. Return the new PR's URL and number.`;
@@ -560,6 +551,105 @@ if (!pr)
   };
 let rebaseConflicts = Boolean(pr.resolvedConflicts);
 log(`${prNumber ? 'PR readied' : 'PR opened'}: ${pr.url}`);
+
+/**
+ * CodeRabbit posts one review per PR on its own schedule. The run waits for
+ * that one review only: the fix push below may draw an incremental review,
+ * and nothing waits for it.
+ */
+phase('CodeRabbit');
+let codeRabbit = null;
+const crWait = await agent(
+  `Wait for the CodeRabbit review on PR #${pr.number} in this repo, then collect it. CodeRabbit is the GitHub app whose login is \`coderabbitai[bot]\`.
+
+Poll \`gh api repos/{owner}/{repo}/pulls/${pr.number}/reviews --paginate\` for a review by \`coderabbitai[bot]\`. Wait between polls inside one Bash command, for example a loop that checks every 60 seconds for up to 9 minutes, run with a 600000ms timeout, and rerun that loop until about 30 minutes have passed in total. Also read the PR's issue comments (\`gh api repos/{owner}/{repo}/issues/${pr.number}/comments\`): when CodeRabbit says there that it skipped or paused the review, or no CodeRabbit activity appears at all after 30 minutes, return status=no-review with the reason.
+
+Once the review exists, return status=reviewed with its body verbatim as reviewBody, and every inline comment that belongs to it as comments: list them with \`gh api repos/{owner}/{repo}/pulls/${pr.number}/comments --paginate\` and keep those whose \`pull_request_review_id\` is that review's id. Copy bodies verbatim; do not summarise or judge them. Change nothing.`,
+  {
+    label: 'coderabbit-wait',
+    model: 'haiku',
+    effort: 'low',
+    schema: CODERABBIT_WAIT_SCHEMA,
+    phase: 'CodeRabbit',
+  },
+);
+
+if (!crWait || crWait.status !== 'reviewed') {
+  log(
+    `No CodeRabbit review to act on (${crWait ? crWait.reason || 'no reason given' : 'wait agent died'}) — moving on to CI`,
+  );
+} else {
+  const crTriage = await agent(
+    `CodeRabbit reviewed PR #${pr.number}; the branch is checked out in the worktree at ${worktree}. Triage every finding in its review: the inline comments and anything in the review body (nitpicks, outside-the-diff comments, actionable items). Read AGENTS.md at the repo root first, and read the code each finding points at in the worktree before judging it.
+
+- real: the problem exists in the code at HEAD and fixing it is in scope for this branch. Nitpicks count when they are right and cheap.
+- dismissed: the finding is wrong about the code, conflicts with AGENTS.md or the plan, asks for work the plan leaves out, or targets code the branch did not touch. Say what makes it so.
+
+The plan this branch implements:
+
+${plan}
+
+The review body:
+${crWait.reviewBody || '(empty)'}
+
+The inline comments:
+${JSON.stringify(crWait.comments || [], null, 2)}
+
+Do not modify any files.`,
+    {
+      label: 'coderabbit-triage',
+      model: 'opus',
+      effort: 'medium',
+      schema: CODERABBIT_TRIAGE_SCHEMA,
+      phase: 'CodeRabbit',
+    },
+  );
+
+  if (!crTriage) {
+    log('CodeRabbit triage did not complete — moving on to CI');
+  } else if (crTriage.real.length === 0) {
+    codeRabbit = { fixed: [], dismissed: crTriage.dismissed };
+    log(
+      `CodeRabbit: nothing to fix (${crTriage.dismissed.length} finding(s) dismissed)`,
+    );
+  } else {
+    const crFix = await agent(
+      `Fix these CodeRabbit findings on PR #${pr.number} (branch ${branch}, worktree at ${worktree}). Each was triaged as real; fix exactly these, no drive-by refactors.
+${/\.(test|spec)\.|\btests?\b/i.test(JSON.stringify(crTriage.real)) ? REPO_RULES_WITH_TESTING : REPO_RULES}
+Commit the fixes (hooks must pass), then push once to the existing branch without force: \`git -C ${worktree} push\`.
+
+The findings:
+${JSON.stringify(crTriage.real, null, 2)}`,
+      {
+        label: 'coderabbit-fix',
+        model: 'sonnet',
+        effort: 'medium',
+        schema: FIX_SCHEMA,
+        phase: 'CodeRabbit',
+      },
+    );
+    if (!crFix || crFix.status === 'blocked') {
+      return {
+        status: 'blocked',
+        stage: 'coderabbit-fix',
+        branch,
+        worktree,
+        pr: pr.url,
+        reason: crFix
+          ? crFix.blockedReason
+          : 'CodeRabbit fixer died or was skipped',
+        outstandingFindings: crTriage.real,
+        dismissedFindings: crTriage.dismissed,
+        minorFindings,
+        rebaseConflicts,
+      };
+    }
+    codeRabbit = { fixed: crTriage.real, dismissed: crTriage.dismissed };
+    log(
+      `CodeRabbit: ${crTriage.real.length} fixed and pushed, ${crTriage.dismissed.length} dismissed`,
+    );
+  }
+}
 
 phase('Watch CI');
 for (let round = 0; ; round++) {
@@ -596,6 +686,7 @@ When all checks have completed: if everything passed, return conclusion=green wi
       summary: impl.summary,
       minorFindings,
       rebaseConflicts,
+      codeRabbit,
     };
   }
   if (round >= MAX_FIX_ROUNDS) {
@@ -608,6 +699,7 @@ When all checks have completed: if everything passed, return conclusion=green wi
       failures: ci.failures,
       minorFindings,
       rebaseConflicts,
+      codeRabbit,
     };
   }
 
@@ -641,6 +733,7 @@ For every other failure, commit the fixes (hooks must pass) and push to the exis
       failures: ci.failures,
       minorFindings,
       rebaseConflicts,
+      codeRabbit,
     };
   }
   if (fix.resolvedConflicts) rebaseConflicts = true;
