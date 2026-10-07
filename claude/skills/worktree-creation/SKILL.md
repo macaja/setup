@@ -1,6 +1,6 @@
 ---
 name: worktree-creation
-description: Creates a new git worktree for a branch by running the `create-wt` script, which enforces conventional-commit branch names (`feat/...`, `fix/...`) and puts the checkout under `.worktrees/`. Use whenever the user asks for a new worktree, a new branch to work on, or a handoff to a worktree that does not exist yet. Not for switching to an existing worktree or for Orca terminal management.
+description: Creates a new git worktree for a branch by running the `create-wt` script, which enforces conventional-commit branch names (`feat/...`, `fix/...`) and puts the checkout under `.worktrees/`, and names a branch that delivers an epic row or an issue after it (`feat/epic-1086-s1-...`). Use whenever the user asks for a new worktree, a new branch to work on, or a handoff to a worktree that does not exist yet. Not for switching to an existing worktree or for Orca terminal management.
 ---
 
 # Worktree creation
@@ -18,6 +18,20 @@ pick the commit prefix. Never prefix with a username.
 
 Examples: `fix/model-list-unknown-horizon`, `feat/mcp-run-inputs-tool`,
 `chore/bump-vitest`.
+
+### Work that belongs to an epic or an issue
+
+When the branch delivers a row of an epic's sequencing list, name it
+`<type>/epic-<epic number>-<row id>-<kebab-case-name>`, with the row id in
+lowercase. When it delivers a standalone GitHub issue, name it
+`<type>/issue-<issue number>-<kebab-case-name>`. The type still follows the
+kind of change.
+
+Examples: `feat/epic-1086-s1-storage-location-rename` (row S1 of epic #1086),
+`fix/issue-1042-duplicate-run-rows` (issue #1042).
+
+If the user names the epic but not the row, look the row up in the epic's
+issue body (`gh issue view <number>`) instead of guessing it.
 
 ## Steps
 
