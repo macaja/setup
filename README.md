@@ -79,7 +79,7 @@ Scripts for `/workflows`, each one a fan-out of subagents:
 - `review-plan.js` — reviews a plan against the tech design and the real
   codebase, fixes what is blocking.
 - `build-feature.js` — builds an agreed plan on a worktree branch, reviews
-  the diff, opens the PR, watches CI.
+  the diff, opens the PR, triages and fixes the CodeRabbit review, watches CI.
 - `review-pr.js` — reviews a submitted PR, treating unresolved human
   comments as blocking, and pushes the fixes.
 - `review-loop.js` — the shared review→fix→re-review loop the other two
