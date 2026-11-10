@@ -6,6 +6,9 @@ media/config/
 claude/settings.json.bak
 claude/settings.json.bak-*
 
+# Vim swap files left behind when an editor session is killed
+.*.sw?
+
 # Stray files created by a mistyped `export VAR=value` (the value ends up as a
 # filename). Anything whose name looks like a secret assignment stays out.
 *SECRET*=*
