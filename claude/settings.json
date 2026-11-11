@@ -9,10 +9,6 @@
   "includeCoAuthoredBy": false,
   "permissions": {
     "deny": [
-      "Skill(caveman:caveman-commit)",
-      "Skill(caveman:caveman-help)",
-      "Skill(caveman:caveman-stats)",
-      "Skill(caveman:caveman-compress)",
       "Skill(simplify)",
       "Skill(skill-audit)",
       "Skill(keybindings-help)",
@@ -177,17 +173,6 @@
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/.claude/statusline.sh\""
-  },
-  "enabledPlugins": {
-    "caveman@caveman": false
-  },
-  "extraKnownMarketplaces": {
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
-      }
-    }
   },
   "outputStyle": "Plan sections",
   "modelSettings": {

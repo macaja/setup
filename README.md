@@ -54,8 +54,8 @@ bin/                  → ~/.local/bin
   collapse-orca-hooks shrink Orca's inlined hook blobs in settings.json
 claude/               → ~/.claude
   CLAUDE.md           global instructions (communication rules, language)
-  settings.json       statusline, plugins, theme, permissions, hooks
-  statusline.sh       worktree + caveman badge + model + context + usage
+  settings.json       statusline, theme, permissions, hooks
+  statusline.sh       worktree + model + context + usage
   skills/             portable skills (work skills stay local, out of this repo)
   agents/             subagent definitions (empty; parked ones live in agents-disabled/)
   hooks/              scripts settings.json points at (see below)

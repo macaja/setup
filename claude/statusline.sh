@@ -1,5 +1,5 @@
 #!/bin/bash
-# Claude Code statusline: worktree, caveman badge, model name, context window
+# Claude Code statusline: worktree, model name, context window
 # usage, subscription usage. Reads Claude's JSON payload on stdin.
 
 input=$(cat)
@@ -16,21 +16,6 @@ cd "$dir" 2>/dev/null
 # Worktree = repo root folder name (each worktree has its own root dir).
 root=$(git --no-optional-locks rev-parse --show-toplevel 2>/dev/null)
 [ -n "$root" ] && printf '\033[38;5;51m%s\033[0m' "${root##*/}"
-
-# Append caveman badge (mode + savings) if the plugin script exists. The cache
-# path carries a version directory that changes whenever the plugin updates, so
-# glob over it and keep the newest match rather than pinning one version.
-CAVEMAN=""
-for candidate in "$HOME"/.claude/plugins/cache/caveman/caveman/*/src/hooks/caveman-statusline.sh; do
-  [ -f "$candidate" ] || continue
-  if [ -z "$CAVEMAN" ] || [ "$candidate" -nt "$CAVEMAN" ]; then
-    CAVEMAN="$candidate"
-  fi
-done
-if [ -n "$CAVEMAN" ]; then
-  badge=$(bash "$CAVEMAN" 2>/dev/null)
-  [ -n "$badge" ] && printf '  %s' "$badge"
-fi
 
 # Append model display name and reasoning effort, if any.
 [ -n "$model" ] && printf '  \033[38;5;140m%s\033[0m' "$model"
