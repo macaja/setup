@@ -1,100 +1,111 @@
 # setup
 
-Personal machine config: zsh, git, Ghostty, yazi and Claude Code, with a
-one-command installer.
+This repo holds the configuration of my personal machine: zsh, git, Ghostty,
+yazi and Claude Code. One command installs all of it.
 
-## New machine
+## Set up a new machine
+
+Run these two commands:
 
 ```sh
 git clone git@github.com:macaja/setup.git ~/setup
 ~/setup/install.sh
 ```
 
-The installer is idempotent. It:
+You can run the installer again at any time. It is idempotent: a step that is
+already done does nothing. The installer does these steps:
 
-1. Installs homebrew if missing, then the brew packages: `ghostty`, `gh`,
-   `yazi`, `git-delta`.
-2. Installs oh-my-zsh if missing.
-3. Clones the custom zsh plugins from `zshrc`: `zsh-autosuggestions`,
-   `zsh-syntax-highlighting` (`git` and `z` ship with oh-my-zsh).
-4. Symlinks `~/.zshrc` → `zsh/zshrc`.
-5. Symlinks `~/.gitconfig` → `git/gitconfig` and `~/.gitconfig-work` →
+1. It installs homebrew if it is missing. Then it installs the brew packages
+   `ghostty`, `gh`, `yazi` and `git-delta`.
+2. It installs oh-my-zsh if it is missing.
+3. It clones the custom zsh plugins that `zshrc` uses:
+   `zsh-autosuggestions` and `zsh-syntax-highlighting`. The `git` and `z`
+   plugins come with oh-my-zsh.
+4. It links `~/.zshrc` to `zsh/zshrc`.
+5. It links `~/.gitconfig` to `git/gitconfig`, and `~/.gitconfig-work` to
    `git/gitconfig-work`.
-6. Symlinks `~/.config/ghostty/config` → `ghostty/config`.
-7. Symlinks yazi config into `~/.config/yazi` and reinstalls its
-   plugins from `yazi/package.toml` (`ya pkg install`).
-8. Symlinks every script in `bin/` into `~/.local/bin` (on PATH via `zshrc`).
-9. Symlinks Claude Code global config into `~/.claude`: `CLAUDE.md`,
-   `settings.json`, `statusline.sh`, and each entry under `claude/skills/`,
-   `claude/agents/`, `claude/hooks/`, `claude/workflows/` and
-   `claude/commands/`.
-10. Runs `collapse-orca-hooks`, which shrinks the eleven ~2.5 KB one-liners
-    Orca inlines into `settings.json` down to one readable line each.
+6. It links `~/.config/ghostty/config` to `ghostty/config`.
+7. It links the yazi configuration into `~/.config/yazi`. Then it installs
+   the yazi plugins again from `yazi/package.toml` (`ya pkg install`).
+8. It links every script in `bin/` into `~/.local/bin`. `zshrc` puts that
+   folder on the PATH.
+9. It links the global Claude Code configuration into `~/.claude`:
+   `CLAUDE.md`, `settings.json`, `statusline.sh`, and each entry under
+   `claude/skills/`, `claude/agents/`, `claude/hooks/`, `claude/workflows/`
+   and `claude/commands/`.
+10. It runs `collapse-orca-hooks`. Orca writes eleven hooks into
+    `settings.json`, and each one is a one-line blob of about 2.5 KB. The
+    script makes each hook one readable line.
 
-Claude Code plugins reinstall themselves from `enabledPlugins` in
+Claude Code installs its plugins again by itself, from `enabledPlugins` in
 `claude/settings.json`.
 
-Orca re-inlines its hook blobs whenever it updates. Run `collapse-orca-hooks`
-again afterwards to shrink them back.
+Each time Orca updates, it writes its long hook blobs into `settings.json`
+again. After an Orca update, run `collapse-orca-hooks` to make them short
+again.
 
 ## Layout
 
 ```
 install.sh            one-command machine setup
-zsh/zshrc             shell config (oh-my-zsh, plugins, PATH, aliases)
+zsh/zshrc             shell configuration (oh-my-zsh, plugins, PATH, aliases)
 git/
   gitconfig           delta pager, prdiff alias, personal identity
-  gitconfig-work      work identity, included conditionally from gitconfig
-ghostty/config        terminal config (theme, transparency, splits, keybinds)
-yazi/                 file-manager config (pane ratio, keymap, theme, plugins)
-media/                docker compose stack for the movie/series setup (see media/README.md)
+  gitconfig-work      work identity, included from gitconfig on a condition
+ghostty/config        terminal configuration (theme, transparency, splits, keybinds)
+yazi/                 file manager configuration (pane ratio, keymap, theme, plugins)
 bin/                  → ~/.local/bin
   create-wt           pull main, create .worktrees/<type>/<name>
   clean-wt            remove worktrees whose branch is merged into main
-  collapse-orca-hooks shrink Orca's inlined hook blobs in settings.json
+  collapse-orca-hooks make Orca's long hook blobs in settings.json short
 claude/               → ~/.claude
   CLAUDE.md           global instructions (communication rules, language)
   settings.json       statusline, theme, permissions, hooks
   statusline.sh       worktree + model + context + usage
   skills/             portable skills (work skills stay local, out of this repo)
-  agents/             subagent definitions (empty; parked ones live in agents-disabled/)
-  hooks/              scripts settings.json points at (see below)
+  agents/             subagent definitions (empty; parked ones are in agents-disabled/)
+  hooks/              scripts that settings.json points to (see below)
   workflows/          multi-agent workflow scripts (see below)
   commands/           slash commands (see below)
 ```
 
 ### Hooks
 
-Shell scripts and text that `settings.json` wires into Claude Code events.
-Currently only Orca's own hooks are wired; `claude/hooks/` is empty. Anything
-that must hold across a whole session lives in `CLAUDE.md` instead of a
-per-prompt hook, because a hook re-injects its text on every message.
+A hook is a shell script or a text that `settings.json` connects to a Claude
+Code event. At the moment, only the hooks of Orca are connected, and
+`claude/hooks/` is empty.
+
+Put a rule that must apply to a full session in `CLAUDE.md`, not in a hook
+that runs on each prompt. A hook adds its text again on every message.
 
 ### Workflows
 
-Scripts for `/workflows`, each one a fan-out of subagents:
+These scripts are for `/workflows`. Each one sends work out to a group of
+subagents:
 
-- `plan-feature.js` — writes an implementation plan for a feature branch,
-  then hands it to `review-plan`.
-- `review-plan.js` — reviews a plan against the tech design and the real
-  codebase, fixes what is blocking.
-- `build-feature.js` — builds an agreed plan on a worktree branch, reviews
-  the diff, opens the PR, triages and fixes the CodeRabbit review, watches CI.
-- `review-pr.js` — reviews a submitted PR, treating unresolved human
-  comments as blocking, and pushes the fixes.
-- `review-loop.js` — the shared review→fix→re-review loop the other two
-  review workflows call.
+- `plan-feature.js` writes an implementation plan for a feature branch. Then
+  it gives the plan to `review-plan`.
+- `review-plan.js` compares a plan with the tech design and the real code.
+  It fixes the problems that block the work.
+- `build-feature.js` builds an agreed plan on a worktree branch and reviews
+  the diff. Then it opens the PR, sorts and fixes the CodeRabbit review, and
+  watches CI.
+- `review-pr.js` reviews a PR that is already open. It treats each open
+  human comment as a blocking problem, and it pushes the fixes.
+- `review-loop.js` is the shared loop of review, fix and review again. The
+  other two review workflows use it.
 
 ### Commands
 
-Slash commands available in every session:
+These slash commands are available in every session:
 
-- `/handoff` — hands a piece of work from the current conversation to
-  another Orca worktree: writes a self-contained brief to
-  `~/.claude/plans/<slug>.md` and starts a Claude session there pointed at
-  it.
+- `/handoff` gives work from the current conversation to a different Orca
+  worktree. It writes a brief that a reader understands without other
+  context to `~/.claude/plans/<slug>.md`. Then it starts a Claude session in
+  that worktree and points it at the brief.
 
-## Updating
+## Change the configuration
 
-Edit files here (`~/.claude`, `~/.zshrc`, `~/.gitconfig` and the
-`~/.config` entries are symlinks into this repo), then commit and push.
+Edit the files in this repo, then commit and push. `~/.claude`, `~/.zshrc`,
+`~/.gitconfig` and the `~/.config` entries are links into this repo, so an
+edit here changes the live configuration.

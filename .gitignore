@@ -1,6 +1,4 @@
 .DS_Store
-media/.env
-media/config/
 
 # Claude Code writes these next to settings.json when it rewrites it
 claude/settings.json.bak
