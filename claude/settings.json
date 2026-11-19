@@ -20,7 +20,7 @@
       "Skill(init)"
     ]
   },
-  "model": "opus",
+  "model": "claude-opus-5-5",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -199,5 +199,6 @@
       "Bash(aws-vault exec pd4castr-prod:*)",
       "Bash(aws-vault exec pd4castr-staging:*)"
     ]
-  }
+  },
+  "effortLevel": "medium"
 }
