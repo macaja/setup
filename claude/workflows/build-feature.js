@@ -13,7 +13,7 @@ export const meta = {
     },
     {
       title: 'Implement',
-      detail: 'sonnet (medium effort) implements the plan in a worktree',
+      detail: 'sonnet (high effort) implements the plan in a worktree',
       model: 'sonnet',
     },
     {
@@ -382,7 +382,7 @@ Do not push and do not open a PR; later stages handle that.`,
   {
     label: 'implement',
     model: 'sonnet',
-    effort: 'medium',
+    effort: 'high',
     schema: IMPLEMENT_SCHEMA,
   },
 );
