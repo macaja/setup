@@ -125,3 +125,4 @@ case ":$PATH:" in
   *) export PATH="$DORY_CLI_BIN:$PATH" ;;
 esac
 # <<< dory cli <<<
+export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
