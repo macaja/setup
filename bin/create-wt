@@ -22,9 +22,4 @@ git pull origin main 1>&2
 worktree=".worktrees/$branch"
 git worktree add "$worktree" -b "$branch" 1>&2
 
-if [ -f "$worktree/pnpm-lock.yaml" ]; then
-  (cd "$worktree" && pnpm install --frozen-lockfile 1>&2) \
-    || echo "warning: pnpm install failed in $worktree; run it by hand" >&2
-fi
-
 echo "$root/$worktree"
