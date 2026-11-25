@@ -20,7 +20,7 @@
       "Skill(init)"
     ]
   },
-  "model": "claude-opus-5-5",
+  "model": "opus",
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -175,9 +175,10 @@
     "command": "bash \"$HOME/.claude/statusline.sh\""
   },
   "outputStyle": "Plan sections",
+  "effortLevel": "medium",
   "modelSettings": {
     "claude-opus-5-5": {
-      "effortLevel": "high",
+      "effortLevel": "medium",
       "autoCompactWindow": 400000
     },
     "claude-fable-5-1": {
@@ -199,6 +200,5 @@
       "Bash(aws-vault exec pd4castr-prod:*)",
       "Bash(aws-vault exec pd4castr-staging:*)"
     ]
-  },
-  "effortLevel": "medium"
+  }
 }
